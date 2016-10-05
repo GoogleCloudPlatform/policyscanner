@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--- Configuration for appengine deployment -->
+<appengine-web-app xmlns="http://appengine.google.com/ns/1.0">
+    <application>${app.id}</application>
+    <version>${app.version}</version>
+    <vm>true</vm>
+    <threadsafe>true</threadsafe>
+    <system-properties>
+        <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>
+    </system-properties>
+    <env-variables>
+        <env-var name="POLICY_SCANNER_ORG_NAME" value="YOUR_ORG_NAME" />
+        <env-var name="POLICY_SCANNER_ORG_ID" value="YOUR_ORG_ID" />
+        <env-var name="POLICY_SCANNER_INPUT_REPOSITORY_URL" value="YOUR_INPUT_REPOSITORY_URL" />
+        <env-var name="POLICY_SCANNER_SINK_URL" value="YOUR_SINK_URL" />
+        <env-var name="POLICY_SCANNER_EXECUTE_ON_CLOUD" value="TRUE_OR_FALSE" />
+        <env-var name="POLICY_SCANNER_DATAFLOW_TMP_BUCKET" value="YOUR_GCS_BUCKET" />
+        <env-var name="POLICY_SCANNER_GIT_REPOSITORY_URL" value="URL_OF_YOUR_GIT_REPO" />
+        <env-var name="POLICY_SCANNER_GIT_REPOSITORY_NAME" value="NAME_OF_YOUR_GIT_REPO" />
+        <env-var name="POLICY_SCANNER_GIT_SYNC_DEST_BUCKET" value="GCS_BUCKET_TO_SYNC_WITH_GIT_REPO" />
+    </env-variables>
+</appengine-web-app>

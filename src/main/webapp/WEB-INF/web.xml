@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--- Configuration for url routing -->
+<web-app xmlns="http://java.sun.com/xml/ns/javaee"
+  xmlns:xsi=
+    "http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation=
+    "http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
+  version="2.5">
+  <servlet>
+    <servlet-name>LiveStateCheckerApp</servlet-name>
+    <servlet-class>com.google.cloud.security.scanner.testing.LiveStateCheckerApp</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>LiveStateCheckerApp</servlet-name>
+    <url-pattern>/check_states</url-pattern>
+  </servlet-mapping>
+  <servlet>
+    <servlet-name>DesiredStateEnforcerApp</servlet-name>
+    <servlet-class>com.google.cloud.security.scanner.testing.DesiredStateEnforcerApp</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>DesiredStateEnforcerApp</servlet-name>
+    <url-pattern>/enforce_states</url-pattern>
+  </servlet-mapping>
+  <servlet>
+    <servlet-name>UserManagedKeysApp</servlet-name>
+    <servlet-class>com.google.cloud.security.scanner.testing.UserManagedKeysApp</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>UserManagedKeysApp</servlet-name>
+    <url-pattern>/exported_keys</url-pattern>
+  </servlet-mapping>
+  <servlet>
+    <servlet-name>GitGCSSyncApp</servlet-name>
+    <servlet-class>com.google.cloud.security.scanner.testing.GitGCSSyncApp</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>GitGCSSyncApp</servlet-name>
+    <url-pattern>/git_sync</url-pattern>
+  </servlet-mapping>
+  <welcome-file-list>
+    <welcome-file>index.html</welcome-file>
+  </welcome-file-list>
+</web-app>

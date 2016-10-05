@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Configuration for the App Engine Cron Service -->
+<cronentries>
+  <cron>
+    <url>/check_states</url>
+    <!-- <target>beta</target> -->
+    <description>periodic configuration checks</description>
+    <schedule>every 24 hours</schedule>
+  </cron>
+</cronentries>
+

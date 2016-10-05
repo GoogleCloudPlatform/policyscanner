@@ -1,0 +1,15 @@
+[
+    {
+        "role":"roles/editor",
+        "members":[
+            "serviceAccount:someProjectId-compute@developer.gserviceaccount.com",
+            "serviceAccount:someProjectId@appspot.gserviceaccount.com"
+        ]
+    },
+    {
+        "role":"roles/owner",
+        "members":[
+            "user:userAccount@your.domain.org"
+        ]
+    }
+]
