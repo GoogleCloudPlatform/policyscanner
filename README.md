@@ -23,7 +23,7 @@ need to create an organization.
      * Cloud Dataflow
      * Cloud Storage
   4. Add the "Compute Engine default service account"
-     (<YOUR_PROJECT_ID>-compute@developer.gserviceaccount.com) to the
+     (YOUR_PROJECT_ID-compute@developer.gserviceaccount.com) to the
      Organization-level IAM settings and give it the "Browser" role.
 
 2. Check your policies into Google Cloud Storage (GCS).
@@ -74,7 +74,7 @@ need to create an organization.
      navigating to the root of the git directory and running
      `mvn appengine:update`.
   4. Once the app has deployed, you can point your browser to
-     [https://<YOUR_PROJECT_ID>.appspot.com/check\_states]()
+     [https://YOUR_PROJECT_ID.appspot.com/check\_states]()
      to see the result of executing the scanner on your organization's
      projects.
 
