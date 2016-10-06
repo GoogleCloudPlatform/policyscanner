@@ -21,10 +21,9 @@ You will need to deploy this app to App Engine to use it.
      * Cloud Resource Manager
      * Cloud Dataflow
      * Cloud Storage
-  4. Make sure your Google Cloud Services account
-     (<YOUR_PROJECT_ID>@cloudservices.gserviceaccount.com) has the
-     "Project / Browser" role in IAM by going to
-     [IAM & Admin](https://console.cloud.google.com/iam-admin).
+  4. Add the "Compute Engine default service account"
+     (<YOUR_PROJECT_ID>-compute@developer.gserviceaccount.com) to the
+     [Organization-level IAM settings](https://console.cloud.google.com/iam-admin/iam/organization?organizationId=YOURORGID) and give it the "Browser" role.
 
 2. Check your policies into GCS.
   1. Create a bucket in Google Cloud Storage (or use an existing one).
@@ -41,35 +40,34 @@ You will need to deploy this app to App Engine to use it.
      "text/plain" in Google Cloud Storage. A sample policy file has been
      provided in resources/examples/policies.
      The standard url for a project's policy would be
-     "gs://bucket-name/org-id/project-id/POLICY".
+     `gs://bucket-name/org-id/project-id/POLICY`.
 
 3. Customize the scanner for your org before deploying.
   1. Clone the git repository by running
      `git clone https://github.com/google/policyscanner`
-  1. Enter the project ID of the project you created in the "<app.id>"
+  1. Enter the project ID of the project you created in the `<app.id>`
      field in the pom.xml file in the root of the git directory.
-  2. Enter a version for your app in the "<app.version>" field in the
+  2. Enter a version for your app in the `<app.version>` field in the
      pom.xml file. This is set to 1 by default.
   3. If you are running one of the built-in pipelines make sure you update all
      the environment variables needed by it in
      src/main/webapp/WEB-INF/appengine-web.xml. All variables need to be set.
-    1. "POLICY\_SCANNER\_ORG\_NAME" is the name of the org you want to scan.
-    2. "POLICY\_SCANNER\_ORG\_ID" is the numeric ID of the org you want to scan.
-    3. "POLICY\_SCANNER\_INPUT\_REPOSITORY\_URL" is the name of the GCS bucket that
+    1. `POLICY_SCANNER_ORG_NAME` is the name of the org you want to scan.
+    2. `POLICY_SCANNER_ORG_ID` is the numeric ID of the org you want to scan.
+    3. `POLICY_SCANNER_INPUT_REPOSITORY_URL` is the name of the GCS bucket that
        contains the checked-in policies.
-    4. "POLICY\_SCANNER\_SINK\_URL" is the url of the file to which the output of
-       the scanner will be written.
-    5. "POLICY\_SCANNER\_EXECUTE\_ON\_CLOUD" is a boolean which is set to "TRUE" if
+    4. `POLICY_SCANNER_SINK_URL` is the url of the file to which the output of
+       the scanner will be written, e.g. `gs://bucket-name/OUTPUT`.
+    5. `POLICY_SCANNER_EXECUTE_ON_CLOUD` is a boolean which is set to "TRUE" if
        the pipeline is supposed to execute on Google Cloud and "FALSE" if it is
        supposed to run using the local Dataflow runner.
-    6. "POLICY\_SCANNER\_DATAFLOW\_TMP\_BUCKET" is a GCS bucket that Dataflow can
+    6. `POLICY_SCANNER_DATAFLOW_TMP_BUCKET` is a GCS bucket that Dataflow can
        use to store some temporary files during the execution of the pipeline.
        Only used when running the pipeline on Google Cloud.
 
 4. Deploy the app.
-  1. If haven't already, install the Google Cloud SDK by going to
-     https://cloud.google.com/sdk/downloads and authenticate with
-     Google Cloud by running `gcloud auth login` on your computer.
+  1. If haven't already, install the [Google Cloud SDK](https://cloud.google.com/sdk/downloads). Authenticate with Google Cloud by running
+     `gcloud auth login` on your computer.
      Make sure you login with the same account that you created
      the project under.
   2. Once you are logged in, you can deploy the app to App Engine by
@@ -87,11 +85,11 @@ sync it to a GCS bucket and use the above workflow to run the scanner.
 To set-up the git sync:
 
 1. Open src/main/webapp/WEB-INF/appengine-web.xml.
-2. Change the environment variable "POLICY_SCANNER_GIT_REPOSITORY_URL"
+2. Change the environment variable `POLICY_SCANNER_GIT_REPOSITORY_URL`
    to the URL of the git repository you wish to sync.
-3. Change the environment variable "POLICY_SCANNER_GIT_REPOSITORY_NAME"
+3. Change the environment variable `POLICY_SCANNER_GIT_REPOSITORY_NAME`
    to the name of the git repository you wish to sync.
-4. Change the environment variable "POLICY_SCANNER_GIT_SYNC_DEST_BUCKET"
+4. Change the environment variable `POLICY_SCANNER_GIT_SYNC_DEST_BUCKET`
    to the name of the GCS bucket you wish to sync it to.
 
 Then, when you deploy your webapp, you can go to `/git_sync` to launch
