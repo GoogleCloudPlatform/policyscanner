@@ -11,7 +11,9 @@ changes to policies and such.
 # Installation
 
 You will need to deploy this app to App Engine to use it. Also, you will
-need to create an organization.
+need to [create an
+organization](https://cloud.google.com/resource-manager/docs/creating-managing-organization),
+if you have not already.
 
 1. Set-up Google Cloud to deploy the scanner.
   1. Create a new project for the scanner by going to the
@@ -23,7 +25,7 @@ need to create an organization.
      * Cloud Dataflow
      * Cloud Storage
   4. Add the "Compute Engine default service account"
-     (YOUR_PROJECT_ID-compute@developer.gserviceaccount.com) to the
+     (`YOUR_PROJECT_ID-compute@developer.gserviceaccount.com`) to the
      Organization-level IAM settings and give it the "Browser" role.
 
 2. Check your policies into Google Cloud Storage (GCS).
