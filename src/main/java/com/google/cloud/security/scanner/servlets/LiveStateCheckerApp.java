@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.google.cloud.security.scanner.testing;
+package com.google.cloud.security.scanner.servlets;
 
 import com.google.appengine.api.utils.SystemProperty;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -22,18 +22,20 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
-import com.google.cloud.security.scanner.pipelines.DesiredStateEnforcer;
+import com.google.cloud.security.scanner.pipelines.LiveStateChecker;
 import com.google.cloud.security.scanner.sources.GCSFilesSource;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.security.GeneralSecurityException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 /** Handler class for the Dataflow local runner test endpoint. */
-public class DesiredStateEnforcerApp extends HttpServlet {
+public class LiveStateCheckerApp extends HttpServlet {
 
   /**
    * Handler for the GET request to this app.
@@ -58,6 +60,7 @@ public class DesiredStateEnforcerApp extends HttpServlet {
     Preconditions.checkNotNull(inputRepositoryUrl);
     Preconditions.checkNotNull(sinkUrl);
     Preconditions.checkNotNull(dataflowTmpBucket);
+
     GCSFilesSource source;
     try {
       source = new GCSFilesSource(inputRepositoryUrl, org);
@@ -70,10 +73,18 @@ public class DesiredStateEnforcerApp extends HttpServlet {
     } else {
       options = getLocalExecutionOptions();
     }
-    new DesiredStateEnforcer(options, source, orgId)
-        .attachSink(TextIO.Write.named("Write messages to GCS").to(sinkUrl))
+
+    String datetimestamp = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date());
+    new LiveStateChecker(options, source, orgId)
+        .attachSink(TextIO.Write.named("Write messages to GCS").to(sinkUrl + "-" + datetimestamp))
         .run();
-    out.println("Test passed! The output was written to GCS");
+
+    String outputBucket = sinkUrl.replaceAll("gs://", "");
+    outputBucket = outputBucket.substring(0, outputBucket.lastIndexOf('/'));
+    String outputBucketLink = "https://console.cloud.google.com/storage/browser/" + outputBucket;
+    String outputPage = "<b>Test passed!</b><br><br>"
+                        + "The output was written to GCS: <a href='%s'>" + "output file" + "</a>";
+    out.println(String.format(outputPage, outputBucketLink));
   }
 
   private PipelineOptions getCloudExecutionOptions(String stagingLocation) {

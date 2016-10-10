@@ -118,7 +118,7 @@ There also exist pre-built pipelines which can be found in
 `com.google.cloud.security.scanner.pipelines`. To use the built-in
 pipelines, you have to modify the hardcoded bucket and organization IDs
 parameters in the servlets that use these pipelines.
-The servlets are located in com.google.cloud.security.scanner.testing.
+The servlets are located in com.google.cloud.security.scanner.servlets.
 There are two pipelines that are provided:
 - `LiveStateChecker`: This compares the policies of all the projects in
   your organization with their checked-in counterparts in GCS and writes
