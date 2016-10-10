@@ -8,7 +8,7 @@
   version="2.5">
   <servlet>
     <servlet-name>LiveStateCheckerApp</servlet-name>
-    <servlet-class>com.google.cloud.security.scanner.testing.LiveStateCheckerApp</servlet-class>
+    <servlet-class>com.google.cloud.security.scanner.servlets.LiveStateCheckerApp</servlet-class>
   </servlet>
   <servlet-mapping>
     <servlet-name>LiveStateCheckerApp</servlet-name>
@@ -16,7 +16,7 @@
   </servlet-mapping>
   <servlet>
     <servlet-name>DesiredStateEnforcerApp</servlet-name>
-    <servlet-class>com.google.cloud.security.scanner.testing.DesiredStateEnforcerApp</servlet-class>
+    <servlet-class>com.google.cloud.security.scanner.servlets.DesiredStateEnforcerApp</servlet-class>
   </servlet>
   <servlet-mapping>
     <servlet-name>DesiredStateEnforcerApp</servlet-name>
@@ -24,7 +24,7 @@
   </servlet-mapping>
   <servlet>
     <servlet-name>UserManagedKeysApp</servlet-name>
-    <servlet-class>com.google.cloud.security.scanner.testing.UserManagedKeysApp</servlet-class>
+    <servlet-class>com.google.cloud.security.scanner.servlets.UserManagedKeysApp</servlet-class>
   </servlet>
   <servlet-mapping>
     <servlet-name>UserManagedKeysApp</servlet-name>
@@ -32,7 +32,7 @@
   </servlet-mapping>
   <servlet>
     <servlet-name>GitGCSSyncApp</servlet-name>
-    <servlet-class>com.google.cloud.security.scanner.testing.GitGCSSyncApp</servlet-class>
+    <servlet-class>com.google.cloud.security.scanner.servlets.GitGCSSyncApp</servlet-class>
   </servlet>
   <servlet-mapping>
     <servlet-name>GitGCSSyncApp</servlet-name>
