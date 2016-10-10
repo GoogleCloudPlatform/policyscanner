@@ -88,6 +88,10 @@ public class MessageConstructor{
     // diff
     message += "DIFFERENCE:\n";
     List<PolicyBindingDelta> sortedDeltas = new ArrayList<PolicyBindingDelta>(diff.getDeltas());
+    if (sortedDeltas.size() < 1) {
+      return message + "No difference found between known good and live policies\n";
+    }
+
     Collections.<PolicyBindingDelta>sort(sortedDeltas);
     for (PolicyBindingDelta delta : sortedDeltas) {
       if (delta.getAction() == Action.ADDED) {
@@ -101,6 +105,7 @@ public class MessageConstructor{
       message += delta.getMember() + " ";
       message += "\n";
     }
+
     return message;
   }
 }

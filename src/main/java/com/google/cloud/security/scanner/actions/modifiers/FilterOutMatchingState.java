@@ -46,8 +46,9 @@ public class FilterOutMatchingState
   /**
    * Process an element of the type KV<GCPResource, KV<StateResource, GCPResourceState>>
    * and output only those states that do not match.
-   * The GCPResource is the resource that is being described by the GCPResourceState.
-   * The GCPResourceState is the attribute describing the GCPResource.
+   * The GCPResource is the resource that is being described by the GCPResourceState. In
+   * this case, it's the GCP project.
+   * The GCPResourceState is the attribute describing the GCPResource, i.e. the project policies.
    * StateSource represents the source of the GCPResourceState:
    *  - it was either checked in as a known-good, or
    *  - it is the live state of the resource
@@ -57,23 +58,23 @@ public class FilterOutMatchingState
    */
   @Override
   public void processElement(ProcessContext context) {
+    // the project
     GCPResource resource = context.element().getKey();
+    // the project's policies
     KV<StateSource, GCPResourceState> mainValue = context.element().getValue();
 
+    // if the known-good policies' projects contain this project...
     if (context.sideInput(this.view).containsKey(resource)) {
       // make sure there's an element in the side input with the same GCPResource.
 
       KV<StateSource, GCPResourceState> sideValue = context.sideInput(this.view).get(resource);
-      if (!mainValue.getValue().equals(sideValue.getValue())) {
-        // make sure the GCPResourceStates are different.
 
-        // the HashMap will contain two entries, one for
-        // the DESIRED state and one for the LIVE state.
-        Map<StateSource, GCPResourceState> mismatchedStates = new HashMap<>(2);
-        mismatchedStates.put(mainValue.getKey(), mainValue.getValue());
-        mismatchedStates.put(sideValue.getKey(), sideValue.getValue());
-        context.output(KV.of(resource, mismatchedStates));
-      }
+      // the HashMap will contain two entries, one for
+      // the DESIRED state and one for the LIVE state.
+      Map<StateSource, GCPResourceState> mismatchedStates = new HashMap<>(2);
+      mismatchedStates.put(mainValue.getKey(), mainValue.getValue());
+      mismatchedStates.put(sideValue.getKey(), sideValue.getValue());
+      context.output(KV.of(resource, mismatchedStates));
     }
   }
 }
