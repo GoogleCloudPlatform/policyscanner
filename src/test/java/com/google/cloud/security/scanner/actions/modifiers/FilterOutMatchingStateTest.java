@@ -57,7 +57,7 @@ public class FilterOutMatchingStateTest {
   private Pipeline pipeline;
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() {
     pipeline = TestPipeline.create();
   }
 
@@ -87,7 +87,7 @@ public class FilterOutMatchingStateTest {
 
     List<KV<GCPResource, Map<StateSource, GCPResourceState>>> results =
         tester.processBatch(mainInputList);
-    assertEquals(results.size(), 0);
+    assertEquals(0, results.size());
   }
 
   @Test
@@ -115,7 +115,7 @@ public class FilterOutMatchingStateTest {
 
     List<KV<GCPResource, Map<StateSource, GCPResourceState>>> results =
         tester.processBatch(mainInputList);
-    assertEquals(results.size(), 0);
+    assertEquals(1, results.size());
   }
 
   @Test
@@ -141,7 +141,6 @@ public class FilterOutMatchingStateTest {
         KV<GCPResource, Map<StateSource, GCPResourceState>>> tester = DoFnTester.of(function);
     tester.setSideInputInGlobalWindow(view, sideInputList);
 
-
     Map<StateSource, GCPResourceState> outputMap = new HashMap<>(2);
     outputMap.put(StateSource.DESIRED, checkedPolicy);
     outputMap.put(StateSource.LIVE, livePolicy);
@@ -149,7 +148,8 @@ public class FilterOutMatchingStateTest {
         Arrays.asList(KV.of((GCPResource) project, outputMap));
     List<KV<GCPResource, Map<StateSource, GCPResourceState>>> results =
         tester.processBatch(mainInputList);
-    assertEquals(results, expectedOutput);
+
+    assertEquals(expectedOutput, results);
   }
 
   private GCPProject getSampleProject(String suffix) {
