@@ -1,4 +1,4 @@
-package com.google.cloud.security.scanner.testing;
+package com.google.cloud.security.scanner.servlets;
 
 import com.google.api.client.http.InputStreamContent;
 import com.google.api.services.storage.Storage;
