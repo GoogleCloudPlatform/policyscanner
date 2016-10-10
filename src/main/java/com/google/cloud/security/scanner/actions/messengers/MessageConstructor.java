@@ -88,18 +88,22 @@ public class MessageConstructor{
     // diff
     message += "DIFFERENCE:\n";
     List<PolicyBindingDelta> sortedDeltas = new ArrayList<PolicyBindingDelta>(diff.getDeltas());
-    Collections.<PolicyBindingDelta>sort(sortedDeltas);
-    for (PolicyBindingDelta delta : sortedDeltas) {
-      if (delta.getAction() == Action.ADDED) {
-        message += "Found unexpected ";
-      } else if (delta.getAction() == Action.REMOVED) {
-        message += "Not found ";
-      } else {
-        throw new IllegalArgumentException("Unspecified action for the policy diff");
+    if (sortedDeltas.size() < 1) {
+      message += "No difference found between known good and live policies\n";
+    } else {
+      Collections.<PolicyBindingDelta>sort(sortedDeltas);
+      for (PolicyBindingDelta delta : sortedDeltas) {
+        if (delta.getAction() == Action.ADDED) {
+          message += "Found unexpected ";
+        } else if (delta.getAction() == Action.REMOVED) {
+          message += "Not found ";
+        } else {
+          throw new IllegalArgumentException("Unspecified action for the policy diff");
+        }
+        message += delta.getRole() + " ";
+        message += delta.getMember() + " ";
+        message += "\n";
       }
-      message += delta.getRole() + " ";
-      message += delta.getMember() + " ";
-      message += "\n";
     }
     return message;
   }
