@@ -1,13 +1,14 @@
 # Policy Scanner
 
-Policy Scanner scans your projects' policies and alerts you if they
-deviate from a known-good.
-You can also link a source-controlled repository full of your
-projects' desired policies to the scanner, and get alerts every time a
-project's policy doesn't match its intended value.
+Policy Scanner keeps the policies in your organization's Cloud Platform
+projects secure by:
 
-This allows an organization to set up a system of review for making
-changes to policies and such.
+1 - Scanning Cloud Platform Projects in your organization 
+2 - Alerting if scanned projects deviate from a know-good policy
+
+Policy Scanner also allows you to create source-controlled repository of your
+projects' desired policies, and get alerts every time aproject's policy 
+doesn't match its intended value.
 
 # Installation
 
@@ -26,7 +27,7 @@ if you have not already.
      * Cloud Storage
   4. Add the ["Compute Engine default service account"](https://developers.google.com/identity/protocols/application-default-credentials)
      (`PROJECT_NUMBER-compute@developer.gserviceaccount.com`) to the
-     Organization-level IAM settings and give it the "Browser" role.
+     Organization-level IAM /s and give it the "Browser" role.
 
 2. Check your policies into Google Cloud Storage (GCS).
   1. Create a bucket in GCS (or use an existing one).
