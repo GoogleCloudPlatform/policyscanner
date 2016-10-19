@@ -173,7 +173,8 @@ public class GCPProject implements PoliciedObject {
   }
 
   /**
-   * Set the IAM policy that will bind this project.
+   * Set the IAM policy that will bind this project. This requires the "Project Owner"
+   * role to be added to the service account.
    * @param sourceGCPResourcePolicy The policy this project is to be bound to.
    * @throws IOException Thrown if there's an IO error setting the policy.
    * @throws GeneralSecurityException Thrown if there's a permissions error setting the policy.

@@ -19,8 +19,8 @@ package com.google.cloud.security.scanner.pipelines;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -40,6 +40,7 @@ import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource.StateSource;
 import com.google.cloud.security.scanner.primitives.GCPProject;
 import com.google.cloud.security.scanner.primitives.GCPResource;
@@ -196,9 +197,13 @@ public class DesiredStateEnforcerTest {
     outputMap.put(StateSource.DESIRED, checkedPolicy);
     outputMap.put(StateSource.LIVE, livePolicy);
 
-    new DesiredStateEnforcer(options, this.checkedSource, ORG_ID)
-        .appendAssertContains(new String[]{constructMessage(gcpProject, outputMap)})
-        .run();
+    try {
+      new DesiredStateEnforcer(options, this.checkedSource, ORG_ID)
+          .appendAssertContains(new String[]{constructMessage(gcpProject, outputMap)})
+          .run();
+    } catch (AggregatorRetrievalException are) {
+      are.printStackTrace();
+    }
     assertEquals(fixedPolicy[0], checkedIamPolicy);
   }
 
