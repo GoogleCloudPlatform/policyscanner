@@ -17,9 +17,12 @@
 package com.google.cloud.security.scanner.pipelines;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.PipelineResult;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
+import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
+import com.google.cloud.dataflow.sdk.runners.AggregatorValues;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.transforms.PTransform;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
@@ -47,6 +50,9 @@ import java.util.Map;
 public class DesiredStateEnforcer {
   private Pipeline pipeline;
   private PCollection<String> outputMessages;
+  private static DiscrepancyAutoFixMessenger discrepancyAutoFixMessenger = 
+      new DiscrepancyAutoFixMessenger();
+  private long enforcedStates;
 
   /**
    * Construct a LiveStateChecker to compare the live states of GCP resources
@@ -60,14 +66,26 @@ public class DesiredStateEnforcer {
       String org) {
     this.pipeline = Pipeline.create(options);
     this.outputMessages = constructPipeline(this.pipeline, org, knownGoodSource);
+    this.enforcedStates = 0L;
   }
 
   /**
    * Run the pipeline.
+   * @throws AggregatorRetrievalException 
    */
-  public DesiredStateEnforcer run() {
-    this.pipeline.run();
+  public DesiredStateEnforcer run() throws AggregatorRetrievalException {
+    PipelineResult result = this.pipeline.run();
+    
+    AggregatorValues<Long> aggregatorValues = result.getAggregatorValues(
+            this.discrepancyAutoFixMessenger.getTotalEnforcedStatesAggregator());
+    this.enforcedStates = 
+        aggregatorValues.getTotalValue(
+            this.discrepancyAutoFixMessenger.getTotalEnforcedStatesAggregator().getCombineFn());
     return this;
+  }
+
+  public long getTotalEnforcedStates() {
+    return this.enforcedStates;
   }
 
   /**
@@ -120,9 +138,9 @@ public class DesiredStateEnforcer {
         taggedLiveStates.apply(ParDo.named("Find states that don't match")
             .withSideInputs(knownGoodStatesView)
             .of(new FilterOutMatchingState(knownGoodStatesView)));
+
     // Construct an alert message for all the discrepancies found and fix the discrepancies.
-    return mismatchedStates.apply(ParDo
-        .named("Fix discrepancies")
-        .of(new DiscrepancyAutoFixMessenger()));
+    return mismatchedStates
+        .apply(ParDo.named("Fix discrepancies").of(this.discrepancyAutoFixMessenger));
   }
 }

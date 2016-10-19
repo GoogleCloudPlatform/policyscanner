@@ -26,34 +26,33 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Transform to filter out matching states and leave only mismatched state configurations.
+ * Transform to join the known good and live state configurations.
  */
-public class FilterOutMatchingState
+public class JoinKnownGoodAndLiveStates
     extends DoFn<KV<GCPResource, KV<StateSource, GCPResourceState>>,
     KV<GCPResource, Map<StateSource, GCPResourceState>>> {
 
   private PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> view;
 
   /**
-   * Constructor for the FilterOutMatchingState DoFn.
+   * Constructor for the JoinKnownGoodAndLiveStates DoFn.
    * @param view The PCollectionView which contains the side-input elements.
    */
-  public FilterOutMatchingState
+  public JoinKnownGoodAndLiveStates
       (PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> view) {
     this.view = view;
   }
 
   /**
-   * Process an element of the type KV<GCPResource, KV<StateResource, GCPResourceState>>
-   * and output only those states that do not match.
+   * Process an element of the type KV<GCPResource, KV<StateResource, GCPResourceState>>.
    * The GCPResource is the resource that is being described by the GCPResourceState. In
    * this case, it's the GCP project.
    * The GCPResourceState is the attribute describing the GCPResource, i.e. the project policies.
    * StateSource represents the source of the GCPResourceState:
    *  - it was either checked in as a known-good, or
    *  - it is the live state of the resource
-   *  GCPResourceStates tagged with one StateSource (say, DESIRED) will be inputted through
-   *  a side input, and those tagged with the other will be inputted through the main input.
+   *  GCPResourceStates tagged with one StateSource (say, DESIRED) will be input through
+   *  a side input, and those tagged with the other will be input through the main input.
    * @param context The ProcessContext object that contains context-specific methods and objects.
    */
   @Override
@@ -68,16 +67,13 @@ public class FilterOutMatchingState
       // make sure there's an element in the side input with the same GCPResource.
 
       KV<StateSource, GCPResourceState> sideValue = context.sideInput(this.view).get(resource);
-      if (!mainValue.getValue().equals(sideValue.getValue())) {
-        // make sure the GCPResourceStates are different.
 
-        // the HashMap will contain two entries, one for
-        // the DESIRED state and one for the LIVE state.
-        Map<StateSource, GCPResourceState> mismatchedStates = new HashMap<>(2);
-        mismatchedStates.put(mainValue.getKey(), mainValue.getValue());
-        mismatchedStates.put(sideValue.getKey(), sideValue.getValue());
-        context.output(KV.of(resource, mismatchedStates));
-      }
+      // the HashMap will contain two entries, one for
+      // the DESIRED state and one for the LIVE state.
+      Map<StateSource, GCPResourceState> mismatchedStates = new HashMap<>(2);
+      mismatchedStates.put(mainValue.getKey(), mainValue.getValue());
+      mismatchedStates.put(sideValue.getKey(), sideValue.getValue());
+      context.output(KV.of(resource, mismatchedStates));
     }
   }
 }

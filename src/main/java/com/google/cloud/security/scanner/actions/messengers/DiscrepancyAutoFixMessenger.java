@@ -16,7 +16,9 @@
 
 package com.google.cloud.security.scanner.actions.messengers;
 
+import com.google.cloud.dataflow.sdk.transforms.Aggregator;
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.dataflow.sdk.transforms.Sum;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource.StateSource;
 import com.google.cloud.security.scanner.primitives.GCPResource;
@@ -29,6 +31,9 @@ import java.util.Map;
  */
 public class DiscrepancyAutoFixMessenger
     extends DoFn<KV<GCPResource, Map<StateSource, GCPResourceState>>, String> {
+
+  private final Aggregator<Long, Long> totalEnforcedStates = 
+      createAggregator("Total enforced states", new Sum.SumLongFn());
 
   /**
    * Construct a notification message out of the incoming object.
@@ -49,11 +54,16 @@ public class DiscrepancyAutoFixMessenger
       String message = "Live state for resource " + resource.toString()+ " changed from:\n" +
           liveState.toString() + "to the desired state:\n" + desiredState.toString();
       processContext.output(message);
+      totalEnforcedStates.addValue(1L);
     }
     else {
       throw new IllegalArgumentException(
           "The <StateSource, GCPResourceState> map does not contain exactly two elements."
       );
     }
+  }
+  
+  public final Aggregator<Long, Long> getTotalEnforcedStatesAggregator() {
+    return totalEnforcedStates;
   }
 }
