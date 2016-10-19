@@ -29,7 +29,7 @@ import java.util.Map;
  */
 public class PolicyDiscrepancyMessenger
     extends DoFn<KV<GCPResource, Map<StateSource, GCPResourcePolicy>>, String> {
-  
+
   /**
    * Construct a notification message out of the incoming object.
    * The incoming object is a KV pair with the GCPResource as the key,

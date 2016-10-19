@@ -26,7 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Transform to filter out matching states and leave only mismatched state configurations.
+ * Transform to join the known good and live state configurations.
  */
 public class JoinKnownGoodAndLiveStates
     extends DoFn<KV<GCPResource, KV<StateSource, GCPResourceState>>,
@@ -35,7 +35,7 @@ public class JoinKnownGoodAndLiveStates
   private PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> view;
 
   /**
-   * Constructor for the FilterOutMatchingState DoFn.
+   * Constructor for the JoinKnownGoodAndLiveStates DoFn.
    * @param view The PCollectionView which contains the side-input elements.
    */
   public JoinKnownGoodAndLiveStates
@@ -44,16 +44,15 @@ public class JoinKnownGoodAndLiveStates
   }
 
   /**
-   * Process an element of the type KV<GCPResource, KV<StateResource, GCPResourceState>>
-   * and output only those states that do not match.
+   * Process an element of the type KV<GCPResource, KV<StateResource, GCPResourceState>>.
    * The GCPResource is the resource that is being described by the GCPResourceState. In
    * this case, it's the GCP project.
    * The GCPResourceState is the attribute describing the GCPResource, i.e. the project policies.
    * StateSource represents the source of the GCPResourceState:
    *  - it was either checked in as a known-good, or
    *  - it is the live state of the resource
-   *  GCPResourceStates tagged with one StateSource (say, DESIRED) will be inputted through
-   *  a side input, and those tagged with the other will be inputted through the main input.
+   *  GCPResourceStates tagged with one StateSource (say, DESIRED) will be input through
+   *  a side input, and those tagged with the other will be input through the main input.
    * @param context The ProcessContext object that contains context-specific methods and objects.
    */
   @Override
