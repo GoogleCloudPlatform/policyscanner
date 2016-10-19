@@ -10,5 +10,4 @@ Policy Scanner also allows you to create source-controlled repository of your
 projects' desired policies, and get alerts every time a project's policy
 doesn't match its intended value.
 
-Installation and configuration for Policy Scanner can be found in the
-[wiki](https://github.com/GoogleCloudPlatform/policyscanner/wiki).
+**[Installation and Configuration](https://github.com/GoogleCloudPlatform/policyscanner/wiki)**
