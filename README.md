@@ -7,7 +7,7 @@ projects secure by:
 2. Alerting if scanned projects deviate from a known-good policy
 
 Policy Scanner also allows you to create source-controlled repository of your
-projects' desired policies, and get alerts every time aproject's policy
+projects' desired policies, and get alerts every time a project's policy
 doesn't match its intended value.
 
 # Installation
