@@ -21,13 +21,17 @@ import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.runners.AggregatorRetrievalException;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
+import com.google.cloud.security.scanner.common.Constants;
 import com.google.cloud.security.scanner.pipelines.DesiredStateEnforcer;
 import com.google.cloud.security.scanner.sources.GCSFilesSource;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.security.GeneralSecurityException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -70,10 +74,24 @@ public class DesiredStateEnforcerApp extends HttpServlet {
     } else {
       options = getLocalExecutionOptions();
     }
-    new DesiredStateEnforcer(options, source, orgId)
-        .attachSink(TextIO.Write.named("Write messages to GCS").to(sinkUrl))
-        .run();
-    out.println("Test passed! The output was written to GCS");
+    String datetimestamp = new SimpleDateFormat(Constants.SINK_TIMESTAMP_FORMAT).format(new Date());
+    DesiredStateEnforcer enforcer = null;
+    try {
+      enforcer = new DesiredStateEnforcer(options, source, orgId)
+          .attachSink(
+              TextIO.Write
+              .named("Write messages to GCS")
+              .to(sinkUrl + Constants.OUTPUT_LABEL_ENFORCER + datetimestamp))
+          .run();
+      if (enforcer.getTotalEnforcedStates() < 1) {
+        out.println("Finished running Enforcer! No states needed to be enforced.");
+      } else {
+        out.println("Finished running Enforcer! The output was written to GCS");
+      }
+    } catch (AggregatorRetrievalException aggRetrievalException) {
+      // TODO(carise): do something better than this
+      aggRetrievalException.printStackTrace();
+    }
   }
 
   private PipelineOptions getCloudExecutionOptions(String stagingLocation) {

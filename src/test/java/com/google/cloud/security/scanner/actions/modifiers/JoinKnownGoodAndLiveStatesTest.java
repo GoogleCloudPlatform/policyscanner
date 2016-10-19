@@ -46,10 +46,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Test for FilterOutMatchingState
+ * Test for JoinKnownGoodAndLiveStates
  */
 @RunWith(JUnit4.class)
-public class FilterOutMatchingStateTest {
+public class JoinKnownGoodAndLiveStatesTest {
   private static final String ROLE = "OWNER";
   private static final String MEMBER_1 = "user:test@test.test";
   private static final String MEMBER_2 = "serviceAccount:wow@wow.wow";
@@ -79,7 +79,7 @@ public class FilterOutMatchingStateTest {
     PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> view =
         View.<GCPResource, KV<StateSource, GCPResourceState>>asMap().apply(collection);
 
-    FilterOutMatchingState function = new FilterOutMatchingState(view);
+    JoinKnownGoodAndLiveStates function = new JoinKnownGoodAndLiveStates(view);
     DoFnTester<KV<GCPResource, KV<StateSource, GCPResourceState>>,
         KV<GCPResource, Map<StateSource, GCPResourceState>>> tester = DoFnTester.of(function);
     tester.setSideInputInGlobalWindow(view, sideInputList);
@@ -107,14 +107,14 @@ public class FilterOutMatchingStateTest {
     PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> view =
         View.<GCPResource, KV<StateSource, GCPResourceState>>asMap().apply(collection);
 
-    FilterOutMatchingState function = new FilterOutMatchingState(view);
+    JoinKnownGoodAndLiveStates function = new JoinKnownGoodAndLiveStates(view);
     DoFnTester<KV<GCPResource, KV<StateSource, GCPResourceState>>,
         KV<GCPResource, Map<StateSource, GCPResourceState>>> tester = DoFnTester.of(function);
     tester.setSideInputInGlobalWindow(view, sideInputList);
 
     List<KV<GCPResource, Map<StateSource, GCPResourceState>>> results =
         tester.processBatch(mainInputList);
-    assertEquals(0, results.size());
+    assertEquals(1, results.size());
   }
 
   @Test
@@ -135,7 +135,7 @@ public class FilterOutMatchingStateTest {
     PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> view =
         View.<GCPResource, KV<StateSource, GCPResourceState>>asMap().apply(collection);
 
-    FilterOutMatchingState function = new FilterOutMatchingState(view);
+    JoinKnownGoodAndLiveStates function = new JoinKnownGoodAndLiveStates(view);
     DoFnTester<KV<GCPResource, KV<StateSource, GCPResourceState>>,
         KV<GCPResource, Map<StateSource, GCPResourceState>>> tester = DoFnTester.of(function);
     tester.setSideInputInGlobalWindow(view, sideInputList);

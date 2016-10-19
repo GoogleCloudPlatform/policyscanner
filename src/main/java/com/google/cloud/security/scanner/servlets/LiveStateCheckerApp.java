@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
+import com.google.cloud.security.scanner.common.Constants;
 import com.google.cloud.security.scanner.pipelines.LiveStateChecker;
 import com.google.cloud.security.scanner.sources.GCSFilesSource;
 import com.google.common.base.Preconditions;
@@ -74,15 +75,18 @@ public class LiveStateCheckerApp extends HttpServlet {
       options = getLocalExecutionOptions();
     }
 
-    String datetimestamp = new SimpleDateFormat("yyyy-MM-dd-HH-mm-ss").format(new Date());
+    String datetimestamp = new SimpleDateFormat(Constants.SINK_TIMESTAMP_FORMAT).format(new Date());
     new LiveStateChecker(options, source, orgId)
-        .attachSink(TextIO.Write.named("Write messages to GCS").to(sinkUrl + "-" + datetimestamp))
+        .attachSink(
+            TextIO.Write
+                .named("Write messages to GCS")
+                .to(sinkUrl + Constants.OUTPUT_LABEL_SCANNER + datetimestamp))
         .run();
 
     String outputBucket = sinkUrl.replaceAll("gs://", "");
     outputBucket = outputBucket.substring(0, outputBucket.lastIndexOf('/'));
     String outputBucketLink = "https://console.cloud.google.com/storage/browser/" + outputBucket;
-    String outputPage = "<b>Test passed!</b><br><br>"
+    String outputPage = "<b>Finished running Scanner!</b><br><br>"
                         + "The output was written to GCS: <a href='%s'>" + "output file" + "</a>";
     out.println(String.format(outputPage, outputBucketLink));
   }

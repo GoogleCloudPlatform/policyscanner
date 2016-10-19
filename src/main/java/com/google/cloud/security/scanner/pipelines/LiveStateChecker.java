@@ -31,8 +31,8 @@ import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.security.scanner.actions.extractors.ExtractState;
 import com.google.cloud.security.scanner.actions.extractors.FileToState;
 import com.google.cloud.security.scanner.actions.messengers.PolicyDiscrepancyMessenger;
-import com.google.cloud.security.scanner.actions.modifiers.FilterOutMatchingState;
 import com.google.cloud.security.scanner.actions.modifiers.FilterOutPolicies;
+import com.google.cloud.security.scanner.actions.modifiers.JoinKnownGoodAndLiveStates;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource.StateSource;
 import com.google.cloud.security.scanner.primitives.GCPProject;
@@ -118,14 +118,14 @@ public class LiveStateChecker {
     // Join the two known-good and the live halves.
     PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> knownGoodStatesView =
         taggedKnownGoodStates.apply(View.<GCPResource, KV<StateSource, GCPResourceState>>asMap());
-    PCollection<KV<GCPResource, Map<StateSource, GCPResourceState>>> mismatchedStates =
+    PCollection<KV<GCPResource, Map<StateSource, GCPResourceState>>> joinedStates =
         taggedLiveStates.apply(ParDo.named("Find states that don't match")
             .withSideInputs(knownGoodStatesView)
-            .of(new FilterOutMatchingState(knownGoodStatesView)));
-    PCollection<KV<GCPResource, Map<StateSource, GCPResourcePolicy>>> mismatchedPolicies =
-        mismatchedStates.apply(ParDo.named("FilterOutPolicies").of(new FilterOutPolicies()));
+            .of(new JoinKnownGoodAndLiveStates(knownGoodStatesView)));
+    PCollection<KV<GCPResource, Map<StateSource, GCPResourcePolicy>>> joinedPolicies =
+        joinedStates.apply(ParDo.named("FilterOutPolicies").of(new FilterOutPolicies()));
     // Construct an alert message for all the discrepancies found.
-    return mismatchedPolicies.apply(ParDo
+    return joinedPolicies.apply(ParDo
         .named("Generate notification messages")
         .of(new PolicyDiscrepancyMessenger()));
   }
