@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.dataflow.sdk.transforms.Flatten;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.values.KV;
@@ -31,6 +32,7 @@ import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.security.scanner.actions.extractors.ExtractState;
 import com.google.cloud.security.scanner.actions.extractors.FileToState;
+import com.google.cloud.security.scanner.actions.messengers.OutstandingStatesMessenger;
 import com.google.cloud.security.scanner.actions.messengers.PolicyDiscrepancyMessenger;
 import com.google.cloud.security.scanner.actions.modifiers.FilterOutPolicies;
 import com.google.cloud.security.scanner.actions.modifiers.FindOutstandingStates;
@@ -111,8 +113,11 @@ public class LiveStateChecker {
     return this;
   }
 
-  private PCollection<String> constructPipeline(Pipeline pipeline, String org,
-      BoundedSource<KV<List<String>, String>> knownGoodSource) {
+  private PCollection<String> constructPipeline(
+      Pipeline pipeline,
+      String org,
+      BoundedSource<KV<List<String>,
+      String>> knownGoodSource) {
     // Read files from GCS.
     PCollection<KV<List<String>, String>> knownGoodFiles =
         pipeline.apply("Read known-good data", Read.from(knownGoodSource));
@@ -142,21 +147,27 @@ public class LiveStateChecker {
         taggedLiveStates.apply(View.<GCPResource, KV<StateSource, GCPResourceState>>asMap());
 
     // Find outstanding states (known good with no matching live/live with no matching known-good)
-    PCollection<String> outstandingKnownGoodStates =
+    PCollection<KV<String, GCPResource>> outstandingKnownGoodStates =
         taggedKnownGoodStates.apply(
             ParDo.named("Find known good states with no matching live states")
                 .withSideInputs(liveStatesView)
                 .of(new FindOutstandingStates(liveStatesView)));
-    PCollection<String> outstandingLiveStates =
+    PCollection<KV<String, GCPResource>> outstandingLiveStates =
         taggedLiveStates.apply(
             ParDo.named("Find live states with no matching known good states")
                 .withSideInputs(knownGoodStatesView)
                 .of(new FindOutstandingStates(knownGoodStatesView)));
 
-    PCollection<String> allOutstandingStates = PCollectionList
-        .of(outstandingKnownGoodStates)
-        .and(outstandingLiveStates)
-        .apply(Flatten.<String>pCollections());
+    PCollection<KV<String, GCPResource>> mergedOutstandingStates =
+        PCollectionList.of(outstandingKnownGoodStates).and(outstandingLiveStates)
+            .apply(Flatten.<KV<String, GCPResource>>pCollections());
+
+    PCollection<KV<String, Iterable<GCPResource>>> groupedOutstandingStates =
+        mergedOutstandingStates.apply(GroupByKey.<String, GCPResource>create());
+
+    PCollection<String> allOutstandingStates = groupedOutstandingStates
+        .apply(ParDo.named("Format outstanding states output")
+        .of(new OutstandingStatesMessenger()));
 
     if (this.outstandingOutputLocation != null) {
       allOutstandingStates.apply(TextIO.Write.named("Write outstanding states to GCS")

@@ -27,7 +27,8 @@ import java.security.GeneralSecurityException;
 import java.util.Map;
 
 public class FindOutstandingStates
-  extends DoFn<KV<GCPResource, KV<StateSource, GCPResourceState>>, String> {
+  extends DoFn<KV<GCPResource, KV<StateSource, GCPResourceState>>,
+      KV<String, GCPResource>> {
 
   private PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> view;
 
@@ -50,7 +51,7 @@ public class FindOutstandingStates
     KV<StateSource, GCPResourceState> mainValue = context.element().getValue();
 
     if (!context.sideInput(this.view).containsKey(resource)) {
-      context.output(mainValue.getKey().toString() + ":" + resource.toString());
+      context.output(KV.of(mainValue.getKey().toString(), resource));
     }
   }
 }

@@ -31,6 +31,7 @@ import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.security.GeneralSecurityException;
+import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import javax.servlet.http.HttpServlet;
@@ -78,10 +79,10 @@ public class DesiredStateEnforcerApp extends HttpServlet {
     DesiredStateEnforcer enforcer = null;
     try {
       enforcer = new DesiredStateEnforcer(options, source, orgId)
-          .attachSink(
-              TextIO.Write
+          .attachSink(TextIO.Write
               .named("Write messages to GCS")
-              .to(sinkUrl + Constants.OUTPUT_LABEL_ENFORCER + datetimestamp))
+              .to(MessageFormat.format(Constants.SINK_NAME_FORMAT,
+                  new Object[]{sinkUrl, datetimestamp, Constants.OUTPUT_LABEL_ENFORCER})))
           .run();
       if (enforcer.getTotalEnforcedStates() < 1) {
         out.println("Finished running Enforcer! No states needed to be enforced.");
