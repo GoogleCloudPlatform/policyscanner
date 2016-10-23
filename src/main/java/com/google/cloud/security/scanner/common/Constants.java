@@ -19,8 +19,9 @@ package com.google.cloud.security.scanner.common;
 /** Constants that are used by this application */
 public final class Constants {
   public static final String SINK_TIMESTAMP_FORMAT = "yyyyMMdd_HHmmss";
-  
+
   // output file labels
   public static final String OUTPUT_LABEL_ENFORCER = "-enforcer-";
   public static final String OUTPUT_LABEL_SCANNER = "-scanner-";
+  public static final String OUTPUT_LABEL_OUTSTANDING = "-outstanding-";
 }
