@@ -19,19 +19,21 @@ package com.google.cloud.security.scanner.pipelines;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
+import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.Flatten;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.PDone;
 import com.google.cloud.security.scanner.actions.extractors.ExtractState;
 import com.google.cloud.security.scanner.actions.extractors.FileToState;
 import com.google.cloud.security.scanner.actions.messengers.PolicyDiscrepancyMessenger;
 import com.google.cloud.security.scanner.actions.modifiers.FilterOutPolicies;
+import com.google.cloud.security.scanner.actions.modifiers.FindOutstandingStates;
 import com.google.cloud.security.scanner.actions.modifiers.JoinKnownGoodAndLiveStates;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource.StateSource;
@@ -48,7 +50,11 @@ import java.util.Map;
  */
 public class LiveStateChecker {
   private Pipeline pipeline;
-  private PCollection<String> outputMessages;
+  private BoundedSource<KV<List<String>, String>> knownGoodSource;
+  private String org;
+  private PCollection<String> scannerDiffOutput;
+  private String diffOutputLocation;
+  private String outstandingOutputLocation;
 
   /**
    * Construct a LiveStateChecker to compare the live states of GCP resources
@@ -61,7 +67,13 @@ public class LiveStateChecker {
       BoundedSource<KV<List<String>, String>> knownGoodSource,
       String org) {
     this.pipeline = Pipeline.create(options);
-    this.outputMessages = constructPipeline(this.pipeline, org, knownGoodSource);
+    this.knownGoodSource = knownGoodSource;
+    this.org = org;
+  }
+
+  public LiveStateChecker build() {
+    this.scannerDiffOutput = constructPipeline(this.pipeline, this.org, this.knownGoodSource);
+    return this;
   }
 
   /**
@@ -73,11 +85,20 @@ public class LiveStateChecker {
   }
 
   /**
-   * Attach a sink to output the messages to.
-   * @param sinkTransform Transform to output messages to the sink.
+   * Set the scanner diff output location
+   * @param sinkUrl The output url
    */
-  public LiveStateChecker attachSink(PTransform<PCollection<String>, PDone> sinkTransform) {
-    this.outputMessages.apply(sinkTransform);
+  public LiveStateChecker setDiffOutputLocation(String sinkUrl) {
+    this.diffOutputLocation = sinkUrl;
+    return this;
+  }
+
+  /**
+   * Set the scanner outstanding states output location
+   * @param sinkUrl The output url
+   */
+  public LiveStateChecker setOutstandingOutputLocation(String sinkUrl) {
+    this.outstandingOutputLocation = sinkUrl;
     return this;
   }
 
@@ -86,7 +107,7 @@ public class LiveStateChecker {
    * @param expectedOutputs The strings that are to be contained in the pipeline's final output.
    */
   LiveStateChecker appendAssertContains(String[] expectedOutputs) {
-    DataflowAssert.that(this.outputMessages).containsInAnyOrder(expectedOutputs);
+    DataflowAssert.that(this.scannerDiffOutput).containsInAnyOrder(expectedOutputs);
     return this;
   }
 
@@ -115,18 +136,52 @@ public class LiveStateChecker {
         liveStates.apply(ParDo.named("Mark states as being live")
             .of(new TagStateWithSource(StateSource.LIVE)));
 
-    // Join the two known-good and the live halves.
     PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> knownGoodStatesView =
         taggedKnownGoodStates.apply(View.<GCPResource, KV<StateSource, GCPResourceState>>asMap());
+    PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> liveStatesView =
+        taggedLiveStates.apply(View.<GCPResource, KV<StateSource, GCPResourceState>>asMap());
+
+    // Find outstanding states (known good with no matching live/live with no matching known-good)
+    PCollection<String> outstandingKnownGoodStates =
+        taggedKnownGoodStates.apply(
+            ParDo.named("Find known good states with no matching live states")
+                .withSideInputs(liveStatesView)
+                .of(new FindOutstandingStates(liveStatesView)));
+    PCollection<String> outstandingLiveStates =
+        taggedLiveStates.apply(
+            ParDo.named("Find live states with no matching known good states")
+                .withSideInputs(knownGoodStatesView)
+                .of(new FindOutstandingStates(knownGoodStatesView)));
+
+    PCollection<String> allOutstandingStates = PCollectionList
+        .of(outstandingKnownGoodStates)
+        .and(outstandingLiveStates)
+        .apply(Flatten.<String>pCollections());
+
+    if (this.outstandingOutputLocation != null) {
+      allOutstandingStates.apply(TextIO.Write.named("Write outstanding states to GCS")
+          .to(this.outstandingOutputLocation));
+    }
+
+    // Join the two known-good and the live halves.
     PCollection<KV<GCPResource, Map<StateSource, GCPResourceState>>> joinedStates =
         taggedLiveStates.apply(ParDo.named("Find states that don't match")
             .withSideInputs(knownGoodStatesView)
             .of(new JoinKnownGoodAndLiveStates(knownGoodStatesView)));
     PCollection<KV<GCPResource, Map<StateSource, GCPResourcePolicy>>> joinedPolicies =
         joinedStates.apply(ParDo.named("FilterOutPolicies").of(new FilterOutPolicies()));
+
     // Construct an alert message for all the discrepancies found.
-    return joinedPolicies.apply(ParDo
-        .named("Generate notification messages")
-        .of(new PolicyDiscrepancyMessenger()));
+    PCollection<String> discrepancyOutput =
+        joinedPolicies.apply(ParDo
+            .named("Generate notification messages")
+            .of(new PolicyDiscrepancyMessenger()));
+
+    if (this.diffOutputLocation != null) {
+      discrepancyOutput
+          .apply(TextIO.Write.named("Write diff messages to GCS").to(this.diffOutputLocation));
+    }
+
+    return discrepancyOutput;
   }
 }

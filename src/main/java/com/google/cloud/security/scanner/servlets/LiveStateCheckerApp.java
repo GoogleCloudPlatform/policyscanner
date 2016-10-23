@@ -17,7 +17,6 @@
 package com.google.cloud.security.scanner.servlets;
 
 import com.google.appengine.api.utils.SystemProperty;
-import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -77,10 +76,9 @@ public class LiveStateCheckerApp extends HttpServlet {
 
     String datetimestamp = new SimpleDateFormat(Constants.SINK_TIMESTAMP_FORMAT).format(new Date());
     new LiveStateChecker(options, source, orgId)
-        .attachSink(
-            TextIO.Write
-                .named("Write messages to GCS")
-                .to(sinkUrl + Constants.OUTPUT_LABEL_SCANNER + datetimestamp))
+        .setDiffOutputLocation(sinkUrl + Constants.OUTPUT_LABEL_SCANNER + datetimestamp)
+        .setOutstandingOutputLocation(sinkUrl + Constants.OUTPUT_LABEL_OUTSTANDING + datetimestamp)
+        .build()
         .run();
 
     String outputBucket = sinkUrl.replaceAll("gs://", "");

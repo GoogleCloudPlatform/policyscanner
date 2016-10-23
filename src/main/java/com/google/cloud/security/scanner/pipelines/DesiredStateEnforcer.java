@@ -50,7 +50,7 @@ import java.util.Map;
 public class DesiredStateEnforcer {
   private Pipeline pipeline;
   private PCollection<String> outputMessages;
-  private static DiscrepancyAutoFixMessenger discrepancyAutoFixMessenger = 
+  private static DiscrepancyAutoFixMessenger discrepancyAutoFixMessenger =
       new DiscrepancyAutoFixMessenger();
   private long enforcedStates;
 
@@ -71,16 +71,16 @@ public class DesiredStateEnforcer {
 
   /**
    * Run the pipeline.
-   * @throws AggregatorRetrievalException 
+   * @throws AggregatorRetrievalException
    */
   public DesiredStateEnforcer run() throws AggregatorRetrievalException {
     PipelineResult result = this.pipeline.run();
-    
+
     AggregatorValues<Long> aggregatorValues = result.getAggregatorValues(
-            this.discrepancyAutoFixMessenger.getTotalEnforcedStatesAggregator());
-    this.enforcedStates = 
+            discrepancyAutoFixMessenger.getTotalEnforcedStatesAggregator());
+    this.enforcedStates =
         aggregatorValues.getTotalValue(
-            this.discrepancyAutoFixMessenger.getTotalEnforcedStatesAggregator().getCombineFn());
+            discrepancyAutoFixMessenger.getTotalEnforcedStatesAggregator().getCombineFn());
     return this;
   }
 
@@ -141,6 +141,6 @@ public class DesiredStateEnforcer {
 
     // Construct an alert message for all the discrepancies found and fix the discrepancies.
     return mismatchedStates
-        .apply(ParDo.named("Fix discrepancies").of(this.discrepancyAutoFixMessenger));
+        .apply(ParDo.named("Fix discrepancies").of(discrepancyAutoFixMessenger));
   }
 }
