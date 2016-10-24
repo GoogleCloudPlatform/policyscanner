@@ -55,6 +55,7 @@ public class LiveStateChecker {
   private BoundedSource<KV<List<String>, String>> knownGoodSource;
   private String org;
   private PCollection<String> scannerDiffOutput;
+  private PCollection<String> unmatchedStatesOutput;
   private String diffOutputLocation;
   private String unmatchedOutputLocation;
 
@@ -88,7 +89,7 @@ public class LiveStateChecker {
 
   /**
    * Set the scanner diff output location
-   * @param sinkUrl The output url
+   * @param sinkUrl The output url prefix for the policy diffs
    */
   public LiveStateChecker setDiffOutputLocation(String sinkUrl) {
     this.diffOutputLocation = sinkUrl;
@@ -97,11 +98,19 @@ public class LiveStateChecker {
 
   /**
    * Set the scanner unmatched states output location
-   * @param sinkUrl The output url
+   * @param sinkUrl The output url prefix for the unmatched states
    */
   public LiveStateChecker setUnmatchedOutputLocation(String sinkUrl) {
     this.unmatchedOutputLocation = sinkUrl;
     return this;
+  }
+
+  /**
+   * Get the unmatched states output
+   * @return the unmatched states output of the pipeline
+   */
+  public PCollection<String> getUnmatchedStatesOutput() {
+    return this.unmatchedStatesOutput;
   }
 
   /**
@@ -165,12 +174,12 @@ public class LiveStateChecker {
     PCollection<KV<String, Iterable<GCPResource>>> groupedUnmatchedStates =
         mergedUnmatchedStates.apply(GroupByKey.<String, GCPResource>create());
 
-    PCollection<String> allUnmatchedStates = groupedUnmatchedStates
+    this.unmatchedStatesOutput = groupedUnmatchedStates
         .apply(ParDo.named("Format unmatched states output")
         .of(new UnmatchedStatesMessenger()));
 
     if (this.unmatchedOutputLocation != null) {
-      allUnmatchedStates.apply(TextIO.Write.named("Write unmatched states to GCS")
+      this.unmatchedStatesOutput.apply(TextIO.Write.named("Write unmatched states to GCS")
           .to(this.unmatchedOutputLocation));
     }
 

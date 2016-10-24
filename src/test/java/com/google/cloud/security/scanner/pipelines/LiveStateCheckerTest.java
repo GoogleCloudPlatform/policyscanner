@@ -37,6 +37,7 @@ import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
+import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
 import com.google.cloud.security.scanner.actions.messengers.MessageConstructor;
 import com.google.cloud.security.scanner.primitives.GCPProject;
 import com.google.cloud.security.scanner.primitives.GCPResourcePolicy;
@@ -187,6 +188,73 @@ public class LiveStateCheckerTest {
         .build()
         .appendAssertContains(new String[]{messageConstructor.constructMessage()})
         .run();
+  }
+
+  @Test
+  public void testUnmatchedStatesOutputIsCorrect() throws IOException {
+    // create the policy for the live project
+    String editorRole = "roles/editor";
+    String editorMember = "serviceAccount:sample@sample.sample.com";
+    String ownerRole = "roles/owner";
+    String ownerMember = "user:sample@sample.com";
+    String fileContent = "[\n"
+        + "      {\n"
+        + "        \"role\": \"" + ownerRole + "\",\n"
+        + "        \"members\": [\n"
+        + "          \"" + ownerMember + "\"\n"
+        + "        ]\n"
+        + "      },\n"
+        + "      {\n"
+        + "        \"role\": \"" + editorRole + "\",\n"
+        + "        \"members\": [\n"
+        + "          \"" + editorMember + "\"\n"
+        + "        ]\n"
+        + "      }\n"
+        + "    ]";
+    String liveProjectName = "someLiveProjectName";
+    String liveProjectId = "someLiveProjectId";
+    String orgId = ORG_ID;
+    ResourceId resourceId = new ResourceId().setId(orgId);
+    Project liveProject =
+        new Project().setProjectId(liveProjectId).setParent(resourceId).setName(liveProjectName);
+    Binding editorBinding = new Binding()
+        .setRole(editorRole)
+        .setMembers(Arrays.asList(editorMember));
+    Binding ownerBinding = new Binding()
+        .setRole(ownerRole)
+        .setMembers(Arrays.asList(ownerMember));
+    List<Binding> bindings = Arrays.asList(ownerBinding, editorBinding);
+    Policy iamPolicy = new Policy().setBindings(bindings);
+    // when calling projects().list(), return the live project
+    when(listProjects.execute())
+    .thenReturn(this.listProjectsResponse
+        .setNextPageToken("halting string")
+        .setProjects(Arrays.asList(liveProject)));
+    when(this.getIamPolicy.execute()).thenReturn(iamPolicy);
+
+    // mock out the desired policy
+    String desiredProjectId = "someKnownGoodProject";
+    String desiredPolicyPath = ORG_ID + DELIM + desiredProjectId + DELIM + POLICY_FILE;
+
+    setUpGetFileContent(fileContent);
+    setUpGetFilesPage(desiredPolicyPath);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+
+    LiveStateChecker liveStateChecker =
+        new LiveStateChecker(options, this.checkedSource, ORG_ID)
+          .build();
+
+    String[] expectedOutput = new String[] {
+        "DESIRED:someKnownGoodProject",
+        "LIVE:someLiveProjectId"
+    };
+
+    DataflowAssert
+        .that(liveStateChecker.getUnmatchedStatesOutput())
+        .containsInAnyOrder(expectedOutput);
+
+    liveStateChecker.run();
   }
 
   private void setUpGetFileContent(final String testString) {

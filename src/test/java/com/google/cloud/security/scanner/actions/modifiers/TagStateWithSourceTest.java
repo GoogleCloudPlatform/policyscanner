@@ -27,7 +27,6 @@ import com.google.cloud.security.scanner.primitives.GCPResourcePolicy;
 import com.google.cloud.security.scanner.primitives.GCPResourcePolicy.PolicyBinding;
 import com.google.cloud.security.scanner.primitives.GCPResourceState;
 import com.google.cloud.security.scanner.primitives.PoliciedObject;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -50,7 +49,7 @@ public class TagStateWithSourceTest {
       KV<GCPResource, KV<StateSource, GCPResourceState>>> liveTester;
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() {
     this.checkedTester = DoFnTester.of(new TagStateWithSource(StateSource.DESIRED));
     this.liveTester = DoFnTester.of(new TagStateWithSource(StateSource.LIVE));
   }

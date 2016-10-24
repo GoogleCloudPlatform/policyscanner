@@ -39,7 +39,7 @@ public class LiveStateCheckerRunner {
    * @param args The args this program was called with.
    * @throws IOException Thrown if there's an error reading from one of the APIs.
    */
-  public static void main(String[] args) throws IOException, GeneralSecurityException{
+  public static void main(String[] args) throws IOException {
     String org = System.getenv("POLICY_SCANNER_ORG_NAME");
     String inputRepositoryUrl = System.getenv("POLICY_SCANNER_INPUT_REPOSITORY_URL");
     String sinkUrl = System.getenv("POLICY_SCANNER_SINK_URL");
