@@ -32,10 +32,10 @@ import com.google.cloud.dataflow.sdk.values.PCollectionList;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.security.scanner.actions.extractors.ExtractState;
 import com.google.cloud.security.scanner.actions.extractors.FileToState;
-import com.google.cloud.security.scanner.actions.messengers.OutstandingStatesMessenger;
 import com.google.cloud.security.scanner.actions.messengers.PolicyDiscrepancyMessenger;
+import com.google.cloud.security.scanner.actions.messengers.UnmatchedStatesMessenger;
 import com.google.cloud.security.scanner.actions.modifiers.FilterOutPolicies;
-import com.google.cloud.security.scanner.actions.modifiers.FindOutstandingStates;
+import com.google.cloud.security.scanner.actions.modifiers.FindUnmatchedStates;
 import com.google.cloud.security.scanner.actions.modifiers.JoinKnownGoodAndLiveStates;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource.StateSource;
@@ -56,7 +56,7 @@ public class LiveStateChecker {
   private String org;
   private PCollection<String> scannerDiffOutput;
   private String diffOutputLocation;
-  private String outstandingOutputLocation;
+  private String unmatchedOutputLocation;
 
   /**
    * Construct a LiveStateChecker to compare the live states of GCP resources
@@ -96,11 +96,11 @@ public class LiveStateChecker {
   }
 
   /**
-   * Set the scanner outstanding states output location
+   * Set the scanner unmatched states output location
    * @param sinkUrl The output url
    */
-  public LiveStateChecker setOutstandingOutputLocation(String sinkUrl) {
-    this.outstandingOutputLocation = sinkUrl;
+  public LiveStateChecker setUnmatchedOutputLocation(String sinkUrl) {
+    this.unmatchedOutputLocation = sinkUrl;
     return this;
   }
 
@@ -146,32 +146,32 @@ public class LiveStateChecker {
     PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> liveStatesView =
         taggedLiveStates.apply(View.<GCPResource, KV<StateSource, GCPResourceState>>asMap());
 
-    // Find outstanding states (known good with no matching live/live with no matching known-good)
-    PCollection<KV<String, GCPResource>> outstandingKnownGoodStates =
+    // Find unmatched states (known good with no matching live/live with no matching known-good)
+    PCollection<KV<String, GCPResource>> unmatchedKnownGoodStates =
         taggedKnownGoodStates.apply(
             ParDo.named("Find known good states with no matching live states")
                 .withSideInputs(liveStatesView)
-                .of(new FindOutstandingStates(liveStatesView)));
-    PCollection<KV<String, GCPResource>> outstandingLiveStates =
+                .of(new FindUnmatchedStates(liveStatesView)));
+    PCollection<KV<String, GCPResource>> unmatchedLiveStates =
         taggedLiveStates.apply(
             ParDo.named("Find live states with no matching known good states")
                 .withSideInputs(knownGoodStatesView)
-                .of(new FindOutstandingStates(knownGoodStatesView)));
+                .of(new FindUnmatchedStates(knownGoodStatesView)));
 
-    PCollection<KV<String, GCPResource>> mergedOutstandingStates =
-        PCollectionList.of(outstandingKnownGoodStates).and(outstandingLiveStates)
+    PCollection<KV<String, GCPResource>> mergedUnmatchedStates =
+        PCollectionList.of(unmatchedKnownGoodStates).and(unmatchedLiveStates)
             .apply(Flatten.<KV<String, GCPResource>>pCollections());
 
-    PCollection<KV<String, Iterable<GCPResource>>> groupedOutstandingStates =
-        mergedOutstandingStates.apply(GroupByKey.<String, GCPResource>create());
+    PCollection<KV<String, Iterable<GCPResource>>> groupedUnmatchedStates =
+        mergedUnmatchedStates.apply(GroupByKey.<String, GCPResource>create());
 
-    PCollection<String> allOutstandingStates = groupedOutstandingStates
-        .apply(ParDo.named("Format outstanding states output")
-        .of(new OutstandingStatesMessenger()));
+    PCollection<String> allUnmatchedStates = groupedUnmatchedStates
+        .apply(ParDo.named("Format unmatched states output")
+        .of(new UnmatchedStatesMessenger()));
 
-    if (this.outstandingOutputLocation != null) {
-      allOutstandingStates.apply(TextIO.Write.named("Write outstanding states to GCS")
-          .to(this.outstandingOutputLocation));
+    if (this.unmatchedOutputLocation != null) {
+      allUnmatchedStates.apply(TextIO.Write.named("Write unmatched states to GCS")
+          .to(this.unmatchedOutputLocation));
     }
 
     // Join the two known-good and the live halves.

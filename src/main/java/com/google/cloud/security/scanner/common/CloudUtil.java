@@ -19,7 +19,7 @@ package com.google.cloud.security.scanner.common;
 import com.google.appengine.api.utils.SystemProperty;
 
 public class CloudUtil {
-  
+
   public static boolean willExecuteOnCloud() {
     return SystemProperty.environment.value() == SystemProperty.Environment.Value.Production;
   }

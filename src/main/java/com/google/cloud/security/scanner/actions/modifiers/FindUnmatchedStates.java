@@ -26,20 +26,20 @@ import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.Map;
 
-public class FindOutstandingStates
+public class FindUnmatchedStates
   extends DoFn<KV<GCPResource, KV<StateSource, GCPResourceState>>,
       KV<String, GCPResource>> {
 
   private PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> view;
 
-  public FindOutstandingStates(
+  public FindUnmatchedStates(
       PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> view) {
     this.view = view;
   }
 
   /**
    * For each state (could either be a known good or live state), see whether it
-   * exists in the sideInput. If not, it's an outstanding state and should be
+   * exists in the sideInput. If not, it's an unmatched state and should be
    * included in the output.
    *
    * @param context the ProcessContext object containing information about the state

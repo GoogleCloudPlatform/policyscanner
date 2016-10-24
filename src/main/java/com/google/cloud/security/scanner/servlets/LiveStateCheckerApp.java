@@ -79,8 +79,8 @@ public class LiveStateCheckerApp extends HttpServlet {
     new LiveStateChecker(options, source, orgId)
         .setDiffOutputLocation(MessageFormat.format(Constants.SINK_NAME_FORMAT,
             new Object[]{sinkUrl, datetimestamp, Constants.OUTPUT_LABEL_SCANNER}))
-        .setOutstandingOutputLocation(MessageFormat.format(Constants.SINK_NAME_FORMAT,
-            new Object[]{sinkUrl, datetimestamp, Constants.OUTPUT_LABEL_OUTSTANDING}))
+        .setUnmatchedOutputLocation(MessageFormat.format(Constants.SINK_NAME_FORMAT,
+            new Object[]{sinkUrl, datetimestamp, Constants.OUTPUT_LABEL_UNMATCHED}))
         .build()
         .run();
 

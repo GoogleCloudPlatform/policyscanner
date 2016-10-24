@@ -20,7 +20,7 @@ import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.security.scanner.primitives.GCPResource;
 
-public class OutstandingStatesMessenger
+public class UnmatchedStatesMessenger
   extends DoFn<KV<String, Iterable<GCPResource>>, String> {
 
   @Override
