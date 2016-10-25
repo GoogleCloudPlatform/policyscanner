@@ -223,7 +223,10 @@ public class LiveProjectSource extends BoundedSource<GCPProject> {
         if (project.getParent() != null) {
           orgId = project.getParent().getId();
         }
-        this.projects.add(new GCPProject(project.getProjectId(), orgId, project.getName()));
+        if (project.getLifecycleState() == null
+            || !project.getLifecycleState().startsWith("DELETE")) {
+          this.projects.add(new GCPProject(project.getProjectId(), orgId, project.getName()));
+        }
       }
       this.nextPageToken = projectListResponse.getNextPageToken();
 
