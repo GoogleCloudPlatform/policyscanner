@@ -220,7 +220,11 @@ public class LiveStateCheckerTest {
     String orgId = ORG_ID;
     ResourceId resourceId = new ResourceId().setId(orgId);
     Project liveProject =
-        new Project().setProjectId(liveProjectId).setParent(resourceId).setName(liveProjectName);
+        new Project()
+            .setProjectId(liveProjectId)
+            .setParent(resourceId)
+            .setName(liveProjectName)
+            .setLifecycleState("ACTIVE");
     Binding editorBinding = new Binding()
         .setRole(editorRole)
         .setMembers(Arrays.asList(editorMember));
