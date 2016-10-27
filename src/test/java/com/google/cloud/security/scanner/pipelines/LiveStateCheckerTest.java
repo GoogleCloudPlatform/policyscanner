@@ -148,7 +148,11 @@ public class LiveStateCheckerTest {
     String orgId = ORG_ID;
     ResourceId resourceId = new ResourceId().setId(orgId);
     Project project =
-        new Project().setProjectId(projectId).setParent(resourceId).setName(projectName);
+        new Project()
+            .setProjectId(projectId)
+            .setParent(resourceId)
+            .setName(projectName)
+            .setLifecycleState("ACTIVE");
     Binding editorBinding = new Binding()
         .setRole(editorRole)
         .setMembers(Arrays.asList(editorMemberLive));

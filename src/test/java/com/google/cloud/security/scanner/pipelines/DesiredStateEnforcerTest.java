@@ -154,7 +154,11 @@ public class DesiredStateEnforcerTest {
     String orgId = ORG_ID;
     ResourceId resourceId = new ResourceId().setId(orgId);
     Project project =
-        new Project().setProjectId(projectId).setParent(resourceId).setName(projectName);
+        new Project()
+            .setProjectId(projectId)
+            .setParent(resourceId)
+            .setName(projectName)
+            .setLifecycleState("ACTIVE");
     Binding liveEditorBinding = new Binding()
         .setRole(editorRole)
         .setMembers(Arrays.asList(editorMemberLive));

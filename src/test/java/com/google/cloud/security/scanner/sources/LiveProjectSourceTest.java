@@ -21,7 +21,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.anyString;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -109,7 +109,11 @@ public class LiveProjectSourceTest {
     String nextPageToken = null;
     GCPProject gcpProject = new GCPProject(projectId, orgId, projectName);
     Project project =
-        new Project().setProjectId(projectId).setParent(resourceId).setName(projectName);
+        new Project()
+            .setProjectId(projectId)
+            .setParent(resourceId)
+            .setName(projectName)
+            .setLifecycleState("ACTIVE");
     PipelineOptions options = PipelineOptionsFactory.create();
     LiveProjectReader reader;
 
@@ -166,7 +170,11 @@ public class LiveProjectSourceTest {
     ResourceId resourceId = new ResourceId().setId(orgId);
     GCPProject gcpProject = new GCPProject(projectId, orgId, projectName);
     Project project =
-        new Project().setProjectId(projectId).setParent(resourceId).setName(projectName);
+        new Project()
+            .setProjectId(projectId)
+            .setParent(resourceId)
+            .setName(projectName)
+            .setLifecycleState("ACTIVE");
     List<Project> projects = Arrays.asList(project);
     PipelineOptions options = PipelineOptionsFactory.create();
     LiveProjectReader reader;
@@ -196,7 +204,11 @@ public class LiveProjectSourceTest {
     ResourceId resourceId = new ResourceId().setId(orgId);
     GCPProject gcpProject = new GCPProject(projectId, orgId, projectName);
     Project project =
-        new Project().setProjectId(projectId).setParent(resourceId).setName(projectName);
+        new Project()
+            .setProjectId(projectId)
+            .setParent(resourceId)
+            .setName(projectName)
+            .setLifecycleState("ACTIVE");
     List<Project> projects = new ArrayList<>();
     String nextPageToken = null;
     PipelineOptions options = PipelineOptionsFactory.create();

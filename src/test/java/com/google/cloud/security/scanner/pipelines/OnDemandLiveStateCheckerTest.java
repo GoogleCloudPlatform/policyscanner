@@ -18,8 +18,8 @@ package com.google.cloud.security.scanner.pipelines;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -150,7 +150,11 @@ public class OnDemandLiveStateCheckerTest {
     String orgId = ORG_ID;
     ResourceId resourceId = new ResourceId().setId(orgId);
     Project project =
-        new Project().setProjectId(projectId).setParent(resourceId).setName(projectName);
+        new Project()
+            .setProjectId(projectId)
+            .setParent(resourceId)
+            .setName(projectName)
+            .setLifecycleState("ACTIVE");
     Binding editorBinding = new Binding()
         .setRole(editorRole)
         .setMembers(Arrays.asList(editorMemberLive));
