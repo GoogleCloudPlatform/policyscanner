@@ -55,7 +55,7 @@ public class FilePathToLiveState extends DoFn<List<String>,KV<GCPResource, GCPRe
       try {
         policy = project.getPolicy();
       } catch (Exception e) {
-        LOG.log(Level.WARNING, "Error getting policy ", e);
+        LOG.log(Level.WARNING, "Error getting policy", e);
       }
       if (policy != null) {
         processContext.output(KV.of((GCPResource) project, policy));

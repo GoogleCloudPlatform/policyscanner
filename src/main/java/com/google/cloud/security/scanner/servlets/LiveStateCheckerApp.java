@@ -81,6 +81,8 @@ public class LiveStateCheckerApp extends HttpServlet {
             new Object[]{sinkUrl, datetimestamp, Constants.OUTPUT_LABEL_SCANNER}))
         .setUnmatchedOutputLocation(MessageFormat.format(Constants.SINK_NAME_FORMAT,
             new Object[]{sinkUrl, datetimestamp, Constants.OUTPUT_LABEL_UNMATCHED}))
+        .setErrorOutputLocation(MessageFormat.format(Constants.SINK_NAME_FORMAT,
+            new Object[]{sinkUrl, datetimestamp, Constants.OUTPUT_LABEL_ERROR}))
         .build()
         .run();
 

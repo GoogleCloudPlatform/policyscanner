@@ -17,6 +17,7 @@
 package com.google.cloud.security.scanner.pipelines;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
+import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -29,7 +30,10 @@ import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
 import com.google.cloud.dataflow.sdk.values.PCollectionList;
+import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
+import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import com.google.cloud.security.scanner.actions.extractors.ExtractState;
 import com.google.cloud.security.scanner.actions.extractors.FileToState;
 import com.google.cloud.security.scanner.actions.messengers.PolicyDiscrepancyMessenger;
@@ -58,6 +62,7 @@ public class LiveStateChecker {
   private PCollection<String> unmatchedStatesOutput;
   private String diffOutputLocation;
   private String unmatchedOutputLocation;
+  private String errorOutputLocation;
 
   /**
    * Construct a LiveStateChecker to compare the live states of GCP resources
@@ -106,6 +111,15 @@ public class LiveStateChecker {
   }
 
   /**
+   * Set the error output location
+   * @param sinkUrl The output url prefix for policy read errors
+   */
+  public LiveStateChecker setErrorOutputLocation(String sinkUrl) {
+    this.errorOutputLocation = sinkUrl;
+    return this;
+  }
+
+  /**
    * Get the unmatched states output
    * @return the unmatched states output of the pipeline
    */
@@ -144,11 +158,29 @@ public class LiveStateChecker {
         pipeline.apply("Read live projects", Read.from(new LiveProjectSource(org)));
 
     // Extract project states.
+    final TupleTag<KV<GCPResource, GCPResourceState>> liveStatesSuccessTag =
+        new TupleTag<KV<GCPResource, GCPResourceState>>(){};
+    final TupleTag<String> liveStatesErrorTag = new TupleTag<String>(){};
+
+    PCollectionTuple liveStatesTuple = liveProjects.apply(
+        ParDo.named("Extract project policies")
+            .of(new ExtractState().setErrorOutputTag(liveStatesErrorTag))
+            .withOutputTags(liveStatesSuccessTag, TupleTagList.of(liveStatesErrorTag)));
+
+    if (this.errorOutputLocation != null) {
+      liveStatesTuple.get(liveStatesErrorTag)
+          .setCoder(StringUtf8Coder.of())
+          .apply(TextIO.Write.named("Write project policy read errors")
+              .to(this.errorOutputLocation));
+    }
+
     PCollection<KV<GCPResource, GCPResourceState>> liveStates =
-        liveProjects.apply(ParDo.named("Extract project policies").of(new ExtractState()));
+        liveStatesTuple.get(liveStatesSuccessTag);
+
     // Tag the states to indicate they're live and not from a checked-in source.
     PCollection<KV<GCPResource, KV<StateSource, GCPResourceState>>> taggedLiveStates =
-        liveStates.apply(ParDo.named("Mark states as being live")
+        liveStates
+            .apply(ParDo.named("Mark states as being live")
             .of(new TagStateWithSource(StateSource.LIVE)));
 
     PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> knownGoodStatesView =

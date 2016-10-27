@@ -18,6 +18,7 @@ package com.google.cloud.security.scanner.actions.extractors;
 
 import com.google.cloud.dataflow.sdk.transforms.DoFn;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.security.scanner.primitives.GCPProject;
 import com.google.cloud.security.scanner.primitives.GCPResource;
 import com.google.cloud.security.scanner.primitives.GCPResourceState;
@@ -32,7 +33,16 @@ import java.util.logging.Logger;
 public class ExtractState
   extends DoFn<GCPProject, KV<GCPResource, GCPResourceState>> {
 
-  private static final Logger LOG = Logger.getLogger(ExtractState.class.getName());
+  private transient static TupleTag<String> errorOutputTag;
+  private transient static final Logger LOG = Logger.getLogger(ExtractState.class.getName());
+
+  public ExtractState() {
+  }
+
+  public ExtractState setErrorOutputTag(TupleTag<String> tag) {
+    errorOutputTag = tag;
+    return this;
+  }
 
   /**
    * Convert a GCPProject to a Key-Value pair of the project and its policy.
@@ -45,17 +55,21 @@ public class ExtractState
   @Override
   public void processElement(ProcessContext processContext)
       throws IOException, GeneralSecurityException, IllegalArgumentException {
-    GCPProject project = processContext.element();
+    GCPProject input = processContext.element();
 
-    if (project.getId() != null) {
+    if (input.getId() != null) {
       GCPResourceState policy = null;
       try {
-        policy = project.getPolicy();
+        policy = input.getPolicy();
       } catch (Exception e) {
-        LOG.log(Level.WARNING, "Error getting policy ", e);
+        LOG.log(Level.WARNING, "Error getting policy", e);
       }
-      if (policy != null) {
-        processContext.output(KV.of((GCPResource) project, policy));
+      if (policy == null) {
+        if (errorOutputTag != null) {
+          processContext.sideOutput(errorOutputTag, input.getId());
+        }
+      } else {
+        processContext.output(KV.of((GCPResource) input, policy));
       }
     } else {
       throw new IllegalArgumentException("Found a GCPProject with a null id.");

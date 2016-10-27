@@ -26,4 +26,5 @@ public final class Constants {
   public static final String OUTPUT_LABEL_ENFORCER = "enforcer";
   public static final String OUTPUT_LABEL_SCANNER = "scanner";
   public static final String OUTPUT_LABEL_UNMATCHED = "unmatched";
+  public static final String OUTPUT_LABEL_ERROR = "error";
 }

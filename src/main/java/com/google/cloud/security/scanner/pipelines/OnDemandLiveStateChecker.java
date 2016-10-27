@@ -42,6 +42,7 @@ import java.util.Map;
 
 /**
  * Check the live state of GCP resources and compare them to a known-good.
+ * TODO(carise): fold this into the main LiveStateChecker
  */
 public class OnDemandLiveStateChecker {
   private Pipeline pipeline;

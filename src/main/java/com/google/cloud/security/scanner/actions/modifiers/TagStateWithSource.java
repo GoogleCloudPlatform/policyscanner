@@ -32,7 +32,7 @@ public class TagStateWithSource
   /**
    * Represents the source of a given GCPResourceState.
    */
-  public enum StateSource { 
+  public enum StateSource {
     // LIVE: The current state of the GCPResource.
     LIVE,
     // DESIRED: The ideal state of the GCPResource.
