@@ -23,12 +23,16 @@ import com.google.cloud.security.scanner.primitives.GCPResource;
 import com.google.cloud.security.scanner.primitives.GCPResourceState;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Transform to convert Projects to (PoliciedObject, Policy) pairs.
  */
 public class ExtractState
   extends DoFn<GCPProject, KV<GCPResource, GCPResourceState>> {
+
+  private static final Logger LOG = Logger.getLogger(ExtractState.class.getName());
 
   /**
    * Convert a GCPProject to a Key-Value pair of the project and its policy.
@@ -41,15 +45,19 @@ public class ExtractState
   @Override
   public void processElement(ProcessContext processContext)
       throws IOException, GeneralSecurityException, IllegalArgumentException {
-    GCPProject input = processContext.element();
+    GCPProject project = processContext.element();
 
-    if (input.getId() != null) {
-      GCPResourceState policy = input.getPolicy();
-      if (policy != null) {
-        processContext.output(KV.of((GCPResource) input, policy));
+    if (project.getId() != null) {
+      GCPResourceState policy = null;
+      try {
+        policy = project.getPolicy();
+      } catch (Exception e) {
+        LOG.log(Level.WARNING, "Error getting policy ", e);
       }
-    }
-    else {
+      if (policy != null) {
+        processContext.output(KV.of((GCPResource) project, policy));
+      }
+    } else {
       throw new IllegalArgumentException("Found a GCPProject with a null id.");
     }
   }

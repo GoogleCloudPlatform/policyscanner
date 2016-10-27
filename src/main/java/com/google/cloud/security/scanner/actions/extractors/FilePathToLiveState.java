@@ -25,11 +25,15 @@ import com.google.cloud.security.scanner.primitives.GCPResourceState;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Transform to convert a file path to a live version of the resource it corresponds to.
  */
 public class FilePathToLiveState extends DoFn<List<String>,KV<GCPResource, GCPResourceState>> {
+
+  private static final Logger LOG = Logger.getLogger(FilePathToLiveState.class.getName());
 
   /**
    * Convert the file path into the GCP resource object that it corresponds to.
@@ -47,7 +51,12 @@ public class FilePathToLiveState extends DoFn<List<String>,KV<GCPResource, GCPRe
       // filePath.size() must be 3 and of the form org_id/project_id/POLICY_FILE.
 
       GCPProject project = new GCPProject(filePath.get(1), filePath.get(0));
-      GCPResourceState policy = project.getPolicy();
+      GCPResourceState policy = null;
+      try {
+        policy = project.getPolicy();
+      } catch (Exception e) {
+        LOG.log(Level.WARNING, "Error getting policy ", e);
+      }
       if (policy != null) {
         processContext.output(KV.of((GCPResource) project, policy));
       }

@@ -140,11 +140,12 @@ public class LiveStateChecker {
             .of(new TagStateWithSource(StateSource.DESIRED)));
 
     // Read projects from the CRM API.
-    PCollection<GCPProject> allProjects =
+    PCollection<GCPProject> liveProjects =
         pipeline.apply("Read live projects", Read.from(new LiveProjectSource(org)));
+
     // Extract project states.
     PCollection<KV<GCPResource, GCPResourceState>> liveStates =
-        allProjects.apply(ParDo.named("Extract project policies").of(new ExtractState()));
+        liveProjects.apply(ParDo.named("Extract project policies").of(new ExtractState()));
     // Tag the states to indicate they're live and not from a checked-in source.
     PCollection<KV<GCPResource, KV<StateSource, GCPResourceState>>> taggedLiveStates =
         liveStates.apply(ParDo.named("Mark states as being live")
