@@ -19,19 +19,26 @@ package com.google.cloud.security.scanner.pipelines;
 import com.google.cloud.dataflow.sdk.Pipeline;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
+import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.testing.DataflowAssert;
-import com.google.cloud.dataflow.sdk.transforms.PTransform;
+import com.google.cloud.dataflow.sdk.transforms.Flatten;
+import com.google.cloud.dataflow.sdk.transforms.GroupByKey;
 import com.google.cloud.dataflow.sdk.transforms.ParDo;
 import com.google.cloud.dataflow.sdk.transforms.View;
 import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.PCollection;
+import com.google.cloud.dataflow.sdk.values.PCollectionList;
+import com.google.cloud.dataflow.sdk.values.PCollectionTuple;
 import com.google.cloud.dataflow.sdk.values.PCollectionView;
-import com.google.cloud.dataflow.sdk.values.PDone;
+import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import com.google.cloud.security.scanner.actions.extractors.ExtractState;
 import com.google.cloud.security.scanner.actions.extractors.FileToState;
 import com.google.cloud.security.scanner.actions.messengers.PolicyDiscrepancyMessenger;
+import com.google.cloud.security.scanner.actions.messengers.UnmatchedStatesMessenger;
 import com.google.cloud.security.scanner.actions.modifiers.FilterOutPolicies;
+import com.google.cloud.security.scanner.actions.modifiers.FindUnmatchedStates;
 import com.google.cloud.security.scanner.actions.modifiers.JoinKnownGoodAndLiveStates;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource.StateSource;
@@ -48,7 +55,13 @@ import java.util.Map;
  */
 public class LiveStateChecker {
   private Pipeline pipeline;
-  private PCollection<String> outputMessages;
+  private BoundedSource<KV<List<String>, String>> knownGoodSource;
+  private String org;
+  private PCollection<String> scannerDiffOutput;
+  private static PCollection<String> unmatchedStatesOutput;
+  private static String diffOutputLocation;
+  private static String unmatchedOutputLocation;
+  private static String errorOutputLocation;
 
   /**
    * Construct a LiveStateChecker to compare the live states of GCP resources
@@ -61,7 +74,13 @@ public class LiveStateChecker {
       BoundedSource<KV<List<String>, String>> knownGoodSource,
       String org) {
     this.pipeline = Pipeline.create(options);
-    this.outputMessages = constructPipeline(this.pipeline, org, knownGoodSource);
+    this.knownGoodSource = knownGoodSource;
+    this.org = org;
+  }
+
+  public LiveStateChecker build() {
+    this.scannerDiffOutput = constructPipeline(this.pipeline, this.org, this.knownGoodSource);
+    return this;
   }
 
   /**
@@ -73,12 +92,38 @@ public class LiveStateChecker {
   }
 
   /**
-   * Attach a sink to output the messages to.
-   * @param sinkTransform Transform to output messages to the sink.
+   * Set the scanner diff output location
+   * @param sinkUrl The output url prefix for the policy diffs
    */
-  public LiveStateChecker attachSink(PTransform<PCollection<String>, PDone> sinkTransform) {
-    this.outputMessages.apply(sinkTransform);
+  public LiveStateChecker setDiffOutputLocation(String sinkUrl) {
+    diffOutputLocation = sinkUrl;
     return this;
+  }
+
+  /**
+   * Set the scanner unmatched states output location
+   * @param sinkUrl The output url prefix for the unmatched states
+   */
+  public LiveStateChecker setUnmatchedOutputLocation(String sinkUrl) {
+    unmatchedOutputLocation = sinkUrl;
+    return this;
+  }
+
+  /**
+   * Set the error output location
+   * @param sinkUrl The output url prefix for policy read errors
+   */
+  public LiveStateChecker setErrorOutputLocation(String sinkUrl) {
+    errorOutputLocation = sinkUrl;
+    return this;
+  }
+
+  /**
+   * Get the unmatched states output
+   * @return the unmatched states output of the pipeline
+   */
+  public PCollection<String> getUnmatchedStatesOutput() {
+    return unmatchedStatesOutput;
   }
 
   /**
@@ -86,12 +131,15 @@ public class LiveStateChecker {
    * @param expectedOutputs The strings that are to be contained in the pipeline's final output.
    */
   LiveStateChecker appendAssertContains(String[] expectedOutputs) {
-    DataflowAssert.that(this.outputMessages).containsInAnyOrder(expectedOutputs);
+    DataflowAssert.that(this.scannerDiffOutput).containsInAnyOrder(expectedOutputs);
     return this;
   }
 
-  private PCollection<String> constructPipeline(Pipeline pipeline, String org,
-      BoundedSource<KV<List<String>, String>> knownGoodSource) {
+  private static PCollection<String> constructPipeline(
+      Pipeline pipeline,
+      String org,
+      BoundedSource<KV<List<String>,
+      String>> knownGoodSource) {
     // Read files from GCS.
     PCollection<KV<List<String>, String>> knownGoodFiles =
         pipeline.apply("Read known-good data", Read.from(knownGoodSource));
@@ -105,28 +153,85 @@ public class LiveStateChecker {
             .of(new TagStateWithSource(StateSource.DESIRED)));
 
     // Read projects from the CRM API.
-    PCollection<GCPProject> allProjects =
+    PCollection<GCPProject> liveProjects =
         pipeline.apply("Read live projects", Read.from(new LiveProjectSource(org)));
+
     // Extract project states.
+    final TupleTag<KV<GCPResource, GCPResourceState>> liveStatesSuccessTag =
+        new TupleTag<KV<GCPResource, GCPResourceState>>(){};
+    final TupleTag<String> liveStatesErrorTag = new TupleTag<String>(){};
+
+    PCollectionTuple liveStatesTuple = liveProjects.apply(
+        ParDo.named("Extract project policies")
+            .of(new ExtractState(liveStatesErrorTag))
+            .withOutputTags(liveStatesSuccessTag, TupleTagList.of(liveStatesErrorTag)));
+
+    if (errorOutputLocation != null) {
+      liveStatesTuple.get(liveStatesErrorTag).apply(
+          TextIO.Write.named("Write project policy read errors").to(errorOutputLocation));
+    }
+
     PCollection<KV<GCPResource, GCPResourceState>> liveStates =
-        allProjects.apply(ParDo.named("Extract project policies").of(new ExtractState()));
+        liveStatesTuple.get(liveStatesSuccessTag);
+
     // Tag the states to indicate they're live and not from a checked-in source.
     PCollection<KV<GCPResource, KV<StateSource, GCPResourceState>>> taggedLiveStates =
-        liveStates.apply(ParDo.named("Mark states as being live")
+        liveStates
+            .apply(ParDo.named("Mark states as being live")
             .of(new TagStateWithSource(StateSource.LIVE)));
 
-    // Join the two known-good and the live halves.
     PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> knownGoodStatesView =
         taggedKnownGoodStates.apply(View.<GCPResource, KV<StateSource, GCPResourceState>>asMap());
+    PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> liveStatesView =
+        taggedLiveStates.apply(View.<GCPResource, KV<StateSource, GCPResourceState>>asMap());
+
+    // Find unmatched states (known good with no matching live/live with no matching known-good)
+    PCollection<KV<String, GCPResource>> unmatchedKnownGoodStates =
+        taggedKnownGoodStates.apply(
+            ParDo.named("Find known good states with no matching live states")
+                .withSideInputs(liveStatesView)
+                .of(new FindUnmatchedStates(liveStatesView)));
+    PCollection<KV<String, GCPResource>> unmatchedLiveStates =
+        taggedLiveStates.apply(
+            ParDo.named("Find live states with no matching known good states")
+                .withSideInputs(knownGoodStatesView)
+                .of(new FindUnmatchedStates(knownGoodStatesView)));
+
+    PCollection<KV<String, GCPResource>> mergedUnmatchedStates =
+        PCollectionList.of(unmatchedKnownGoodStates).and(unmatchedLiveStates)
+            .apply(Flatten.<KV<String, GCPResource>>pCollections());
+
+    PCollection<KV<String, Iterable<GCPResource>>> groupedUnmatchedStates =
+        mergedUnmatchedStates.apply(GroupByKey.<String, GCPResource>create());
+
+    unmatchedStatesOutput = groupedUnmatchedStates
+        .apply(ParDo.named("Format unmatched states output")
+        .of(new UnmatchedStatesMessenger()));
+
+    if (unmatchedOutputLocation != null) {
+      unmatchedStatesOutput.apply(TextIO.Write.named("Write unmatched states to GCS")
+          .to(unmatchedOutputLocation));
+    }
+
+    // Join the two known-good and the live halves.
     PCollection<KV<GCPResource, Map<StateSource, GCPResourceState>>> joinedStates =
         taggedLiveStates.apply(ParDo.named("Find states that don't match")
             .withSideInputs(knownGoodStatesView)
             .of(new JoinKnownGoodAndLiveStates(knownGoodStatesView)));
     PCollection<KV<GCPResource, Map<StateSource, GCPResourcePolicy>>> joinedPolicies =
         joinedStates.apply(ParDo.named("FilterOutPolicies").of(new FilterOutPolicies()));
+
     // Construct an alert message for all the discrepancies found.
-    return joinedPolicies.apply(ParDo
-        .named("Generate notification messages")
-        .of(new PolicyDiscrepancyMessenger()));
+    PCollection<String> discrepancyOutput =
+        joinedPolicies.apply(ParDo
+            .named("Generate notification messages")
+            .of(new PolicyDiscrepancyMessenger()));
+
+    if (diffOutputLocation != null) {
+      discrepancyOutput
+          .apply(TextIO.Write.named("Write diff messages to GCS").to(diffOutputLocation));
+    }
+
+    return discrepancyOutput;
   }
 }

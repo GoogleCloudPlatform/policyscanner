@@ -17,7 +17,6 @@
 package com.google.cloud.security.scanner.servlets;
 
 import com.google.appengine.api.utils.SystemProperty;
-import com.google.cloud.dataflow.sdk.io.TextIO;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -30,6 +29,7 @@ import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.security.GeneralSecurityException;
+import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import javax.servlet.http.HttpServlet;
@@ -77,10 +77,13 @@ public class LiveStateCheckerApp extends HttpServlet {
 
     String datetimestamp = new SimpleDateFormat(Constants.SINK_TIMESTAMP_FORMAT).format(new Date());
     new LiveStateChecker(options, source, orgId)
-        .attachSink(
-            TextIO.Write
-                .named("Write messages to GCS")
-                .to(sinkUrl + Constants.OUTPUT_LABEL_SCANNER + datetimestamp))
+        .setDiffOutputLocation(MessageFormat.format(Constants.SINK_NAME_FORMAT,
+            new Object[]{sinkUrl, datetimestamp, Constants.OUTPUT_LABEL_SCANNER}))
+        .setUnmatchedOutputLocation(MessageFormat.format(Constants.SINK_NAME_FORMAT,
+            new Object[]{sinkUrl, datetimestamp, Constants.OUTPUT_LABEL_UNMATCHED}))
+        .setErrorOutputLocation(MessageFormat.format(Constants.SINK_NAME_FORMAT,
+            new Object[]{sinkUrl, datetimestamp, Constants.OUTPUT_LABEL_ERROR}))
+        .build()
         .run();
 
     String outputBucket = sinkUrl.replaceAll("gs://", "");
