@@ -16,7 +16,7 @@
 
   <properties>
     <app.id>YOUR_PROJECT_ID</app.id>
-    <app.version>YOUR_APP_VERSION</app.version>
+    <app.version>1</app.version>
     <appengine.version>1.9.38</appengine.version>
     <gcloud.plugin.version>2.0.9.111.v20160525</gcloud.plugin.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
