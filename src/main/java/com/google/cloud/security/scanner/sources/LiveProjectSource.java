@@ -33,6 +33,7 @@ import java.util.NoSuchElementException;
 /** Source for listing projects through the CRM API. */
 public class LiveProjectSource extends BoundedSource<GCPProject> {
   private static final long SIZE_ESTIMATE = 200;
+  private static final String DELETE_PREFIX = "DELETE";
   private String orgId;
 
   /**
@@ -222,6 +223,10 @@ public class LiveProjectSource extends BoundedSource<GCPProject> {
         String orgId = null;
         if (project.getParent() != null) {
           orgId = project.getParent().getId();
+        }
+        if (project.getLifecycleState() == null
+            || project.getLifecycleState().startsWith(DELETE_PREFIX)) {
+          continue;
         }
         this.projects.add(new GCPProject(project.getProjectId(), orgId, project.getName()));
       }
