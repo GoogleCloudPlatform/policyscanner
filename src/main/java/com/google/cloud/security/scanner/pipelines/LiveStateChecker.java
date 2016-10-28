@@ -17,7 +17,6 @@
 package com.google.cloud.security.scanner.pipelines;
 
 import com.google.cloud.dataflow.sdk.Pipeline;
-import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.io.Read;
 import com.google.cloud.dataflow.sdk.io.TextIO;
@@ -59,10 +58,10 @@ public class LiveStateChecker {
   private BoundedSource<KV<List<String>, String>> knownGoodSource;
   private String org;
   private PCollection<String> scannerDiffOutput;
-  private PCollection<String> unmatchedStatesOutput;
-  private String diffOutputLocation;
-  private String unmatchedOutputLocation;
-  private String errorOutputLocation;
+  private static PCollection<String> unmatchedStatesOutput;
+  private static String diffOutputLocation;
+  private static String unmatchedOutputLocation;
+  private static String errorOutputLocation;
 
   /**
    * Construct a LiveStateChecker to compare the live states of GCP resources
@@ -97,7 +96,7 @@ public class LiveStateChecker {
    * @param sinkUrl The output url prefix for the policy diffs
    */
   public LiveStateChecker setDiffOutputLocation(String sinkUrl) {
-    this.diffOutputLocation = sinkUrl;
+    diffOutputLocation = sinkUrl;
     return this;
   }
 
@@ -106,7 +105,7 @@ public class LiveStateChecker {
    * @param sinkUrl The output url prefix for the unmatched states
    */
   public LiveStateChecker setUnmatchedOutputLocation(String sinkUrl) {
-    this.unmatchedOutputLocation = sinkUrl;
+    unmatchedOutputLocation = sinkUrl;
     return this;
   }
 
@@ -115,7 +114,7 @@ public class LiveStateChecker {
    * @param sinkUrl The output url prefix for policy read errors
    */
   public LiveStateChecker setErrorOutputLocation(String sinkUrl) {
-    this.errorOutputLocation = sinkUrl;
+    errorOutputLocation = sinkUrl;
     return this;
   }
 
@@ -124,7 +123,7 @@ public class LiveStateChecker {
    * @return the unmatched states output of the pipeline
    */
   public PCollection<String> getUnmatchedStatesOutput() {
-    return this.unmatchedStatesOutput;
+    return unmatchedStatesOutput;
   }
 
   /**
@@ -136,7 +135,7 @@ public class LiveStateChecker {
     return this;
   }
 
-  private PCollection<String> constructPipeline(
+  private static PCollection<String> constructPipeline(
       Pipeline pipeline,
       String org,
       BoundedSource<KV<List<String>,
@@ -164,14 +163,12 @@ public class LiveStateChecker {
 
     PCollectionTuple liveStatesTuple = liveProjects.apply(
         ParDo.named("Extract project policies")
-            .of(new ExtractState().setErrorOutputTag(liveStatesErrorTag))
+            .of(new ExtractState(liveStatesErrorTag))
             .withOutputTags(liveStatesSuccessTag, TupleTagList.of(liveStatesErrorTag)));
 
-    if (this.errorOutputLocation != null) {
-      liveStatesTuple.get(liveStatesErrorTag)
-          .setCoder(StringUtf8Coder.of())
-          .apply(TextIO.Write.named("Write project policy read errors")
-              .to(this.errorOutputLocation));
+    if (errorOutputLocation != null) {
+      liveStatesTuple.get(liveStatesErrorTag).apply(
+          TextIO.Write.named("Write project policy read errors").to(errorOutputLocation));
     }
 
     PCollection<KV<GCPResource, GCPResourceState>> liveStates =
@@ -207,13 +204,13 @@ public class LiveStateChecker {
     PCollection<KV<String, Iterable<GCPResource>>> groupedUnmatchedStates =
         mergedUnmatchedStates.apply(GroupByKey.<String, GCPResource>create());
 
-    this.unmatchedStatesOutput = groupedUnmatchedStates
+    unmatchedStatesOutput = groupedUnmatchedStates
         .apply(ParDo.named("Format unmatched states output")
         .of(new UnmatchedStatesMessenger()));
 
-    if (this.unmatchedOutputLocation != null) {
-      this.unmatchedStatesOutput.apply(TextIO.Write.named("Write unmatched states to GCS")
-          .to(this.unmatchedOutputLocation));
+    if (unmatchedOutputLocation != null) {
+      unmatchedStatesOutput.apply(TextIO.Write.named("Write unmatched states to GCS")
+          .to(unmatchedOutputLocation));
     }
 
     // Join the two known-good and the live halves.
@@ -230,9 +227,9 @@ public class LiveStateChecker {
             .named("Generate notification messages")
             .of(new PolicyDiscrepancyMessenger()));
 
-    if (this.diffOutputLocation != null) {
+    if (diffOutputLocation != null) {
       discrepancyOutput
-          .apply(TextIO.Write.named("Write diff messages to GCS").to(this.diffOutputLocation));
+          .apply(TextIO.Write.named("Write diff messages to GCS").to(diffOutputLocation));
     }
 
     return discrepancyOutput;

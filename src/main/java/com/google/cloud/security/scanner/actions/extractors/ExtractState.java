@@ -33,15 +33,14 @@ import java.util.logging.Logger;
 public class ExtractState
   extends DoFn<GCPProject, KV<GCPResource, GCPResourceState>> {
 
-  private transient static TupleTag<String> errorOutputTag;
+  private TupleTag<String> errorOutputTag;
   private transient static final Logger LOG = Logger.getLogger(ExtractState.class.getName());
 
   public ExtractState() {
   }
 
-  public ExtractState setErrorOutputTag(TupleTag<String> tag) {
+  public ExtractState(TupleTag<String> tag) {
     errorOutputTag = tag;
-    return this;
   }
 
   /**
@@ -64,6 +63,7 @@ public class ExtractState
       } catch (Exception e) {
         LOG.log(Level.WARNING, "Error getting policy", e);
       }
+
       if (policy == null) {
         if (errorOutputTag != null) {
           processContext.sideOutput(errorOutputTag, input.getId());
