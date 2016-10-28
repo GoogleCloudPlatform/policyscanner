@@ -22,6 +22,7 @@ import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
+import com.google.cloud.security.scanner.common.CloudUtil;
 import com.google.cloud.security.scanner.pipelines.ExportedServiceAccountKeyRemover;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -41,14 +42,13 @@ public class UserManagedKeysApp extends HttpServlet {
     String sinkUrl = System.getenv("POLICY_SCANNER_SINK_URL");
     String dataflowTmpBucket = System.getenv("POLICY_SCANNER_DATAFLOW_TMP_BUCKET");
     String stagingLocation = "gs://" + dataflowTmpBucket + "/dataflow_tmp";
-    boolean executeOnCloud = Boolean.valueOf(System.getenv("POLICY_SCANNER_EXECUTE_ON_CLOUD"));
 
     Preconditions.checkNotNull(orgId);
     Preconditions.checkNotNull(sinkUrl);
     Preconditions.checkNotNull(dataflowTmpBucket);
 
     PipelineOptions options;
-    if (executeOnCloud) {
+    if (CloudUtil.willExecuteOnCloud()) {
       options = getCloudExecutionOptions(stagingLocation);
     } else {
       options = getLocalExecutionOptions();
