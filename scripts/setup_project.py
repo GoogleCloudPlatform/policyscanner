@@ -1,9 +1,21 @@
+# Copyright 2016 Google Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 # Set up the gcloud environment, create a new project with an App Engine
 # app, and link billing to the project.
 #
-# Not meant to be run for re-configuration.
-#
-# This has been tested with python 2.7
+# This has been tested with python 2.7.
 
 from distutils.spawn import find_executable
 from subprocess import PIPE, Popen, call
@@ -35,7 +47,7 @@ class GcloudConfig(object):
     def auth_login(self):
         """
         User needs to authenticate with Google Cloud Platform account
-        before doing anything else
+        before doing anything else.
         """
         return_val = call(['gcloud', 'auth', 'login', '--force'])
         p = Popen(['gcloud', 'auth', 'list',
@@ -49,6 +61,9 @@ class GcloudConfig(object):
             raise
 
     def create_or_use_project(self):
+        """
+        Create a project or enter the id of a project to use.
+        """
         project_id = None
 
         while True:
@@ -64,6 +79,9 @@ class GcloudConfig(object):
         self._set_config(project_id)
 
     def _create_project(self):
+        """
+        Create the project based on user's input.
+        """
         while True:
             project_id = raw_input(
                 'Enter a project id '
@@ -77,6 +95,9 @@ class GcloudConfig(object):
         return None
 
     def _use_project(self):
+        """
+        Attempt to use a project that the user specifies.
+        """
         while True:
             project_id = raw_input('Enter a project id: ').strip()
             return_val = call(['gcloud', 'projects', 'describe',
@@ -89,6 +110,10 @@ class GcloudConfig(object):
         return None
 
     def _set_config(self, project_id):
+        """
+        Save the gcloud configuration for future use, to remember the
+        environment for future deployment.
+        """
         print 'Trying to activate configuration {}...'.format(project_id)
         return_val = call(['gcloud', 'config', 'configurations', 'activate',
                            project_id])
@@ -102,7 +127,7 @@ class GcloudConfig(object):
 
     def create_or_use_app(self):
         """
-        Create App Engine environment for project
+        Create App Engine environment for project.
         """
         regions = []
         p = Popen(['gcloud', 'app', 'regions', 'list',
@@ -133,7 +158,7 @@ class GcloudConfig(object):
 
     def link_billing(self):
         """
-        Link a billing account
+        Link a billing account to this project.
         """
         pass
 
