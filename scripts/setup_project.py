@@ -12,8 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Set up the gcloud environment, create a new project with an App Engine
-# app, and link billing to the project.
+# Set up the gcloud environment and create a new project with App Engine.
 #
 # This has been tested with python 2.7.
 
@@ -156,19 +155,12 @@ class GcloudConfig(object):
 
         call(['gcloud', 'app', 'create', '--region={}'.format(self.region)])
 
-    def link_billing(self):
-        """
-        Link a billing account to this project.
-        """
-        pass
-
 def run():
     gcloud_config = GcloudConfig()
     gcloud_config.ensure_installed()
     gcloud_config.auth_login()
     gcloud_config.create_or_use_project()
     gcloud_config.create_or_use_app()
-    gcloud_config.link_billing()
 
     print 'Done!'
 
