@@ -155,12 +155,24 @@ class GcloudConfig(object):
 
         call(['gcloud', 'app', 'create', '--region={}'.format(self.region)])
 
+    def next_steps(self):
+        """
+        Print next steps for user
+        """
+        print ('\n========================================================\n'
+               'Success! Your project has been set up! The next steps are:\n\n'
+               '1. Set up billing: https://cloud.console.google.com/billing\n'
+               '2. Enable the Cloud Resource Manager API:\n'
+               'https://console.cloud.google.com/apis/api/cloudresourcemanager.googleapis.com/overview?project={}\n'.format(self.project_id))
+
 def run():
     gcloud_config = GcloudConfig()
     gcloud_config.ensure_installed()
     gcloud_config.auth_login()
     gcloud_config.create_or_use_project()
     gcloud_config.create_or_use_app()
+
+    gcloud_config.next_steps()
 
     print 'Done!'
 
