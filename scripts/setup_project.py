@@ -214,7 +214,6 @@ def run():
     Run the steps for the gcloud setup
     """
     gcloud_config = GcloudConfig()
-    gcloud_config.project_id = 'hello-world-23'
     gcloud_config.ensure_installed()
     gcloud_config.auth_login()
     gcloud_config.create_or_use_project()
