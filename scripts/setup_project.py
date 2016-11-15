@@ -19,10 +19,14 @@
 from distutils.spawn import find_executable
 from subprocess import PIPE, Popen, call
 import re
+import time
 
 PROJECT_ID_REGEX = re.compile('^[a-z][a-z0-9-]{6,30}$')
 
 class GcloudConfig(object):
+    """
+    Encapsulate the gcloud setup in the GcloudConfig class
+    """
 
     def __init__(self):
         self.config_name = None
@@ -155,25 +159,68 @@ class GcloudConfig(object):
 
         call(['gcloud', 'app', 'create', '--region={}'.format(self.region)])
 
-    def next_steps(self):
+    def check_billing(self):
         """
-        Print next steps for user
+        Check whether billing is enabled
         """
-        print ('\n========================================================\n'
-               'Success! Your project has been set up! The next steps are:\n\n'
-               '1. Set up billing: https://cloud.console.google.com/billing\n'
-               '2. Enable the Cloud Resource Manager API:\n'
-               'https://console.cloud.google.com/apis/api/cloudresourcemanager.googleapis.com/overview?project={}\n'.format(self.project_id))
+        print_instructions = True
+        while True:
+            billing_proc = Popen(['gcloud', 'alpha', 'billing',
+                                  'accounts', 'projects', 'describe',
+                                  self.project_id],
+                                 stdout=PIPE)
+            billing_enabled = Popen(['grep', 'billingEnabled'],
+                                    stdin=billing_proc.stdout,
+                                    stdout=PIPE, stderr=PIPE)
+            billing_proc.stdout.close()
+            out, err = billing_enabled.communicate()
+            if out:
+                break
+            else:
+                if print_instructions:
+                    print ('Before enabling the GCP APIs necessary to run '
+                           'Policy Scanner, you must enable Billing:\n\n'
+                           '    '
+                           'https://console.cloud.google.com/'
+                           'billing?project={}\n\n'
+                           'After you enable billing, setup will continue.\n'
+                               .format(self.project_id))
+                    print_instructions = False
+                time.sleep(1)
+
+    def enable_apis(self):
+        """
+        Enable the following APIs:
+        1. Dataflow
+        2. Storage
+        3. Resource Manager
+        """
+        apis = [{'name': 'Dataflow',
+                 'service': 'dataflow.googleapis.com'},
+                {'name': 'Cloud Storage',
+                 'service': 'storage-component-json.googleapis.com'},
+                {'name': 'Cloud Storage JSON',
+                 'service': 'storage-api-json.googleapis.com'},
+                {'name': 'Cloud Resource Manager',
+                 'service': 'cloudresourcemanager.googleapis.com'}]
+
+        for api in apis:
+            print 'Enabling the {} API...'.format(api['name'])
+            call(['gcloud', 'alpha', 'service-management', 'enable',
+                  api['service']])
 
 def run():
+    """
+    Run the steps for the gcloud setup
+    """
     gcloud_config = GcloudConfig()
+    gcloud_config.project_id = 'hello-world-23'
     gcloud_config.ensure_installed()
     gcloud_config.auth_login()
     gcloud_config.create_or_use_project()
     gcloud_config.create_or_use_app()
-
-    gcloud_config.next_steps()
-
+    gcloud_config.check_billing()
+    gcloud_config.enable_apis()
     print 'Done!'
 
 if __name__ == '__main__':
