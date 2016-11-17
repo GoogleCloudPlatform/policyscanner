@@ -17,37 +17,15 @@
 #
 # This has been tested with python 2.7.
 
-import argparse
-
-from distutils.spawn import find_executable
-from subprocess import PIPE, Popen, call
-
-def create_or_use_bucket():
-    """
-    Create or use a specified GCS bucket to store the policy files. Also
-    turn on object versioning on the bucket.
-    """
-    pass
-
-def setup_project_folders():
-    """
-    Read in an input file (optional) of specific project ids or read in all
-    projects in organization and create folders (with the project id as the
-    name) for each one.
-    """
-    pass
-
-def create_base_policies():
-    """
-    For each project, get its IAM policy and save as a json file in its
-    respective GCS bucket.
-    """
-    pass
+from environment.gsutil_env import GsutilEnvironment, ScannerBucketObject
 
 def run():
-    create_or_use_bucket()
-    setup_project_folders()
-    create_base_policies()
+    policy_bkt_setup = GsutilEnvironment()
+    policy_bkt_setup.ensure_environment()
+    policy_bkt_setup.choose_bucket(ScannerBucketObject.POLICY)
+    policy_bkt_setup.choose_bucket(ScannerBucketObject.OUTPUT)
+    policy_bkt_setup.setup_project_policies()
+    print policy_bkt_setup
 
 if __name__ == '__main__':
     run()
