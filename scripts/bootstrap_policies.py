@@ -13,18 +13,25 @@
 # limitations under the License.
 
 # Create GCS bucket that stores known-good policies as well as create
-# baseline policy files for each project specified in an input file.
+# the project folders that will hold the known-good policy files.
 #
 # This has been tested with python 2.7.
+
+import argparse
 
 from environment.gsutil_env import GsutilEnvironment, ScannerBucketObject
 
 def run():
-    policy_bkt_setup = GsutilEnvironment()
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-p', '--project_file', required=False,
+                    help='An optional input file of project ids')
+    args = ap.parse_args()
+
+    policy_bkt_setup = GsutilEnvironment(projects_filename=args.project_file)
     policy_bkt_setup.ensure_environment()
     policy_bkt_setup.choose_bucket(ScannerBucketObject.POLICY)
     policy_bkt_setup.choose_bucket(ScannerBucketObject.OUTPUT)
-    policy_bkt_setup.setup_project_policies()
+    policy_bkt_setup.setup_project_folders()
     print policy_bkt_setup
 
 if __name__ == '__main__':

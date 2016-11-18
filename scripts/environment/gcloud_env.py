@@ -65,11 +65,11 @@ class GcloudEnvironment(object):
                    '--filter=status:ACTIVE', '--format=value(account)'],
                   stdout=PIPE, stderr=PIPE)
         stdout, stderr = p.communicate()
-        try:
+        if p.returncode:
+            print stderr
+
+        if stdout:
             self.account = stdout.strip()
-        except:
-            print 'Invalid account, something went wrong'
-            raise
 
     def create_or_use_project(self):
         """
@@ -84,38 +84,46 @@ class GcloudEnvironment(object):
             if project_choice == '1':
                 project_id = self._use_project()
                 break
-            elif project_choice == '2':
+            if project_choice == '2':
                 project_id = self._create_project()
                 break
+
         self._set_config(project_id)
 
     def _create_project(self):
         """
         Create the project based on user's input.
+
+        If the `projects create` command succeeds, its exit status will
+        be 0; however, if it fails, its exit status will be 1.
         """
         while True:
             project_id = raw_input(
                 'Enter a project id '
                 '(alphanumeric and hyphens): ').strip()
             if self.PROJECT_ID_REGEX.match(project_id):
-                return_val = call(['gcloud', 'alpha', 'projects', 'create',
-                                  project_id])
-                if not return_val:
+                exit_status = call(['gcloud', 'alpha', 'projects', 'create',
+                                    project_id])
+                if exit_status == 0:
                     return project_id
                     break
         return None
 
     def _use_project(self):
         """
-        Attempt to use a project that the user specifies.
+        Attempt to describe a project that the user specifies, to verify
+        that the user has access to it.
+
+        If the `projects describe` command succeeds, its exit status will
+        be 0; however, if it fails, its exit status will be 1.
         """
         while True:
             project_id = raw_input('Enter a project id: ').strip()
-            return_val = call(['gcloud', 'projects', 'describe',
-                               ('--format=table[box,title="Project"]'
-                                '(name,projectId,projectNumber)'),
-                              project_id])
-            if not return_val:
+            exit_status = call(['gcloud', 'projects', 'describe',
+                                ('--format=table[box,title="Project"]'
+                                 '(name,projectId,projectNumber)'),
+                                project_id])
+            if exit_status == 0:
                 return project_id
                 break
         return None
@@ -146,12 +154,9 @@ class GcloudEnvironment(object):
                    '--filter=flexible:True'],
                    stdout=PIPE, stderr=PIPE)
         stdout, stderr = p.communicate()
-        try:
-            for region in stdout.split('\n'):
-                if len(region):
-                    regions.append(region.strip())
-        except:
-            print 'Unable to create App Engine app'
+        for region in stdout.split('\n'):
+            if len(region):
+                regions.append(region.strip())
 
         while True:
             print 'Choose a region for your app to run in:'
@@ -162,14 +167,14 @@ class GcloudEnvironment(object):
                 if region_index > 0 and region_index < len(regions):
                     self.region = regions[region_index]
                     break
-            except:
+            except ValueError:
                 print 'Invalid entry, try again.'
 
         call(['gcloud', 'app', 'create', '--region={}'.format(self.region)])
 
     def check_billing(self):
         """
-        Check whether billing is enabled
+        Check whether billing is enabled.
         """
         print_instructions = True
         while True:
@@ -186,16 +191,26 @@ class GcloudEnvironment(object):
                 print 'Billing has been enabled for this project, continue...'
                 break
             else:
+                # Billing has not been enabled, so print instructions
+                # and wait/poll for billing to be enabled in the
+                # account/project. Once user enables billing, the script
+                # will continue.
                 if print_instructions:
-                    print ('Before enabling the GCP APIs necessary to run '
-                           'Policy Scanner, you must enable Billing:\n\n'
-                           '    '
-                           'https://console.cloud.google.com/'
-                           'billing?project={}\n\n'
-                           'After you enable billing, setup will continue.\n'
-                               .format(self.project_id))
-                    print_instructions = False
+                    print_instructions = self._print_billing_instructions()
                 time.sleep(1)
+
+    def _print_billing_instructions(self):
+        """
+        Print billing instructions.
+        """
+        print ('Before enabling the GCP APIs necessary to run '
+               'Policy Scanner, you must enable Billing:\n\n'
+               '    '
+               'https://console.cloud.google.com/'
+               'billing?project={}\n\n'
+               'After you enable billing, setup will continue.\n'
+                   .format(self.project_id))
+        return False
 
     def enable_apis(self):
         """

@@ -95,15 +95,15 @@ class GsutilEnvironment(object):
             from sys import exit
             exit(p.returncode)
 
-        prompt_templ = ('+----------------------+\n'
+        prompt_tmpl = ('+----------------------+\n'
                         '| Set up {} bucket |\n'
                         '+----------------------+\n'
                         'Specify a bucket for {}:')
         prompt_header = ''
         if object_type == ScannerBucketObject.POLICY:
-            prompt_header = prompt_templ.format('POLICY', 'your policies')
+            prompt_header = prompt_tmpl.format('POLICY', 'your policies')
         elif object_type == ScannerBucketObject.OUTPUT:
-            prompt_header = prompt_templ.format('OUTPUT', 'the scanner output')
+            prompt_header = prompt_tmpl.format('OUTPUT', 'the scanner output')
 
         while True:
             bucket_choice = raw_input(
@@ -118,31 +118,31 @@ class GsutilEnvironment(object):
                 bucket = self._create_or_reuse_bucket(object_type)
             elif bucket_choice == '2':
                 bucket = self._choose_bucket(output)
-            else:
+
+            if not bucket:
                 continue
 
-            if bucket:
-                if not bucket.endswith('/'):
-                    bucket = bucket + '/'
+            if not bucket.endswith('/'):
+                bucket = bucket + '/'
 
-                if object_type == ScannerBucketObject.POLICY:
-                    # if policy bucket, enable versioning
-                    self.policy_bucket = bucket
-                    self._enable_object_versioning(bucket)
-                elif object_type == ScannerBucketObject.OUTPUT:
-                    # warn if using same buckets, prefer not to version
-                    # output and temp files
-                    if bucket == self.policy_bucket:
-                        same_bucket = raw_input(
-                            'I don\'t recommend using the same bucket for '
-                            'both your known-good policies AND output files!\n'
-                            'Continue anyway? y/N ').strip().lower()
-                        if same_bucket != 'y':
-                            continue
-                    self.output_bucket = bucket
+            if object_type == ScannerBucketObject.POLICY:
+                # if policy bucket, enable versioning
+                self.policy_bucket = bucket
+                self._enable_object_versioning(bucket)
+            elif object_type == ScannerBucketObject.OUTPUT:
+                # warn if using same buckets, prefer not to version
+                # output and temp files
+                if bucket == self.policy_bucket:
+                    same_bucket = raw_input(
+                        'I don\'t recommend using the same bucket for '
+                        'both your known-good policies AND output files!\n'
+                        'Continue anyway? y/N ').strip().lower()
+                    if same_bucket != 'y':
+                        continue
+                self.output_bucket = bucket
 
-                print 'Using bucket: {}\n'.format(bucket)
-                break
+            print 'Using bucket: {}\n'.format(bucket)
+            break
 
     def _create_or_reuse_bucket(self, object_type):
         """
@@ -174,46 +174,45 @@ class GsutilEnvironment(object):
           out, err = p.communicate()
           if p.returncode:
               print err
-              if self._force_use_bucket(bucket_name, err):
+              if self._should_force_use_bucket(bucket_name, err):
                   break
 
         return bucket_name
 
-    def _force_use_bucket(self, bucket_name, mb_error_text):
+    def _should_force_use_bucket(self, bucket_name, mb_error_text):
         """
         Parse the error text from gsutil mb and check what the
         exception is. If it's a 409, confirm with the user whether
         they actually want to use that bucket name.
         """
         exceptions = self.GCS_LS_ERROR_REGEX.findall(mb_error_text)
-        if len(exceptions):
-          try:
-              mb_exception, res_code_mb = exceptions[0]
-              if mb_exception == 'ServiceException' and int(res_code_mb) == 409:
-                  p = Popen(['gsutil', 'ls', bucket_name],
-                            stdout=PIPE, stderr=PIPE)
-                  ls_out, ls_err = p.communicate()
-                  ls_exceptions = self.GCS_LS_ERROR_REGEX.findall(ls_err)
-                  if p.returncode:
-                      print ls_err
+        if not len(exceptions):
+            return False
 
-                  if len(ls_exceptions):
-                      ls_exception, res_code_ls = ls_exceptions[0]
-                      if int(res_code_ls) == 403:
-                          print 'You can\'t use this bucket.'
-                          return False
+        mb_exception, res_code_mb = exceptions[0]
+        if mb_exception == 'ServiceException' and int(res_code_mb) == 409:
+            p = Popen(['gsutil', 'ls', bucket_name],
+                      stdout=PIPE, stderr=PIPE)
+            ls_out, ls_err = p.communicate()
+            ls_exceptions = self.GCS_LS_ERROR_REGEX.findall(ls_err)
+            if p.returncode:
+                print ls_err
 
-              while True:
-                should_use = raw_input(
-                    'Re-use the bucket "{}"? (y/N) '
-                    .format(bucket_name)).strip().lower()
+            if len(ls_exceptions):
+                ls_exception, res_code_ls = ls_exceptions[0]
+                if int(res_code_ls) == 403:
+                    print 'You can\'t use this bucket.'
+                    return False
 
-                if should_use == 'y':
-                    return True
-                elif should_use == 'n':
-                    break
-          except:
-              print 'Ok, then let\'s try another bucket.'
+        while True:
+          should_use = raw_input(
+              'Re-use the bucket "{}"? (y/N) '
+              .format(bucket_name)).strip().lower()
+
+          if should_use == 'y':
+              return True
+          elif should_use == 'n':
+              break
 
         return False
 
@@ -260,8 +259,10 @@ class GsutilEnvironment(object):
             raise InvalidBucketException(
                 'Abort operation, the bucket is invalid')
 
-    def setup_project_policies(self):
+    def setup_project_folders(self):
         """
+        TODO(carise):
+
         Read in an input file (optional) of specific project ids or read in all
         projects in organization and create folders (with the project id as the
         name) for each one.
@@ -270,6 +271,9 @@ class GsutilEnvironment(object):
         respective GCS bucket.
         """
         pass
+        # for each project, create a folder
+
+        # create the scanner output folder
 
 class ScannerBucketObject:
     _unused, POLICY, OUTPUT = range(3)

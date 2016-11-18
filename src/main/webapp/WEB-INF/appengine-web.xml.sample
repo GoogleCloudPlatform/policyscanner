@@ -12,7 +12,7 @@
         <env-var name="POLICY_SCANNER_ORG_NAME" value="YOUR_ORG_NAME" />
         <env-var name="POLICY_SCANNER_ORG_ID" value="YOUR_ORG_NUMBER" />
         <env-var name="POLICY_SCANNER_INPUT_REPOSITORY_URL" value="${app.id}_policies" />
-        <env-var name="POLICY_SCANNER_SINK_URL" value="gs://${app.id}.appspot.com/OUTPUT" />
+        <env-var name="POLICY_SCANNER_SINK_URL" value="gs://${app.id}.appspot.com/results/OUTPUT" />
         <env-var name="POLICY_SCANNER_DATAFLOW_TMP_BUCKET" value="${app.id}.appspot.com" />
         <env-var name="POLICY_SCANNER_GIT_REPOSITORY_URL" value="POLICYSCANNER_POLICY_REPO_URL" />
         <env-var name="POLICY_SCANNER_GIT_REPOSITORY_NAME" value="POLICYSCANNER_POLICY_REPO_NAME" />
