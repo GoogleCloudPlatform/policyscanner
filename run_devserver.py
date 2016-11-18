@@ -8,6 +8,7 @@
 
 import os
 import re
+import signal
 import subprocess
 import sys
 import xml.etree.ElementTree as ETree
@@ -72,5 +73,10 @@ def run_with_env_vars(project_id):
 
     subprocess.call(['mvn', 'appengine:devserver'])
 
+def handle_sigint(signal, frame):
+    print 'Exiting'
+    sys.exit(0)
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, handle_sigint)
     run()
