@@ -22,8 +22,6 @@ import com.google.cloud.dataflow.sdk.values.PCollectionView;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource.StateSource;
 import com.google.cloud.security.scanner.primitives.GCPResource;
 import com.google.cloud.security.scanner.primitives.GCPResourceState;
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.Map;
 
 public class FindUnmatchedStates
@@ -45,8 +43,7 @@ public class FindUnmatchedStates
    * @param context the ProcessContext object containing information about the state
    */
   @Override
-  public void processElement(ProcessContext context)
-      throws IOException, GeneralSecurityException, IllegalArgumentException {
+  public void processElement(ProcessContext context) {
     GCPResource resource = context.element().getKey();
     KV<StateSource, GCPResourceState> mainValue = context.element().getValue();
 

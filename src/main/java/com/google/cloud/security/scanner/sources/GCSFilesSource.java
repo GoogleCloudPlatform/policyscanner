@@ -18,6 +18,9 @@ package com.google.cloud.security.scanner.sources;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.googleapis.json.GoogleJsonError;
+import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -31,6 +34,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.security.scanner.exceptions.InvalidBucketException;
 import com.google.common.base.Preconditions;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -45,6 +49,7 @@ import java.util.NoSuchElementException;
 public class GCSFilesSource extends BoundedSource<KV<List<String>, String>> {
   private static final long SIZE_ESTIMATE = 200;
   private static final String DIR_DELIMITER = "/";
+  private static final String AUTH_ERROR = "authError";
   private static Storage gcs;
   private String bucket;
   private String repository;
@@ -79,8 +84,25 @@ public class GCSFilesSource extends BoundedSource<KV<List<String>, String>> {
     this.bucket = bucket;
     this.repository = repository;
 
-    // test that the bucket actually exists.
-    getStorageApiStub().buckets().get(bucket).execute();
+    try {
+      // test that the bucket actually exists.
+      getStorageApiStub().buckets().get(bucket).execute();
+    } catch (GoogleJsonResponseException gjre) {
+      GoogleJsonError gjError = gjre.getDetails();
+      List<ErrorInfo> errorInfos = gjError.getErrors();
+      if (gjError.getCode() == 401 && errorInfos != null && errorInfos.size() > 0) {
+        ErrorInfo errorInfo = errorInfos.get(0);
+        if (AUTH_ERROR.equals(errorInfo.getReason())) {
+          throw new GeneralSecurityException("Can't access bucket \"gs://" + bucket
+              + "\" because your credentials are invalid.\n\nIn your terminal, use this command "
+              + "to auth your application-default credentials:\n\n"
+              + "$ gcloud auth application-default login\n");
+        }
+      }
+      throw new InvalidBucketException("Can't access bucket \"gs://" + bucket
+          + "\". Check that your appengine-web.xml has the correct environment variables.\n"
+          + "More details: " + gjre.getContent());
+    }
   }
 
   /**

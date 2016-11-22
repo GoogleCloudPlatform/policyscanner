@@ -27,7 +27,6 @@ import com.google.cloud.security.scanner.primitives.GCPResourcePolicy.PolicyBind
 import com.google.cloud.security.scanner.primitives.GCPResourceState;
 import com.google.cloud.security.scanner.primitives.PoliciedObject;
 import com.google.gson.Gson;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -46,12 +45,12 @@ public class FileToStateTest {
   private DoFnTester<KV<List<String>, String>, KV<GCPResource, GCPResourceState>> tester;
 
   @Before
-  public void setUp() throws IOException {
+  public void setUp() {
     this.tester = DoFnTester.of(new FileToState());
   }
 
   @Test
-  public void testOneElement() throws IOException {
+  public void testOneElement()  {
     List<String> filePath = getSampleProjectFilePath(getSampleProject());
     String fileContent = getSamplePolicyBindingsString(1);
     GCPProject project = getSampleProject();
@@ -65,10 +64,10 @@ public class FileToStateTest {
   }
 
   @Test
-  public void testMultipleElements() throws IOException {
+  public void testMultipleElements() {
     int elementCount = 5;
     GCPProject project = getSampleProject();
-    List<String> filePath = getSampleProjectFilePath((GCPProject) project);
+    List<String> filePath = getSampleProjectFilePath(project);
     String fileContent = getSamplePolicyBindingsString(1);
     GCPResourceState policy = getSampleGCPResourcePolicy(project, 1);
     List<KV<List<String>, String>> inputs = new ArrayList<>(elementCount);
