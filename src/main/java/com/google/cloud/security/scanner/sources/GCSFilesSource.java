@@ -99,9 +99,11 @@ public class GCSFilesSource extends BoundedSource<KV<List<String>, String>> {
               + "$ gcloud auth application-default login\n");
         }
       }
-      throw new InvalidBucketException("Can't access bucket \"gs://" + bucket
-          + "\". Check that your appengine-web.xml has the correct environment variables.\n"
-          + "More details: " + gjre.getContent());
+      throw new InvalidBucketException("Can't access bucket \"gs://" + bucket + "\".\n\n"
+          + "1. Check that your appengine-web.xml has the correct environment variables.\n"
+          + "2. Try re-authing your application-default credentials with this command:\n\n"
+          + "   $ gcloud auth application-default login\n\n"
+          + "More details:\n" + gjre.getContent());
     }
   }
 

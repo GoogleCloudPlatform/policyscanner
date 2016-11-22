@@ -71,6 +71,7 @@ public class LiveStateChecker {
    * with their checked-in known-good counterparts.
    * @param options The options used to construct the pipeline.
    * @param knownGoodSource The source used to read the known-good.
+   * @param org The organization the projects are to be read from.
    */
   public LiveStateChecker(PipelineOptions options,
       BoundedSource<KV<List<String>, String>> knownGoodSource,
