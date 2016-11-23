@@ -24,7 +24,7 @@ public final class Constants {
   public static final String POLICY_BUCKET = System.getenv("POLICY_SCANNER_INPUT_REPOSITORY_URL");
   public static final String OUTPUT_PREFIX = System.getenv("POLICY_SCANNER_SINK_URL");
   public static final String DATAFLOW_STAGING =
-      "gs://" + System.getenv("POLICY_SCANNER_DATAFLOW_TMP_BUCKET") + "/dataflow_tmp";
+      String.format("gs://%s/dataflow_tmp", System.getenv("POLICY_SCANNER_DATAFLOW_TMP_BUCKET"));
 
   // format strings
   public static final String SINK_TIMESTAMP_FORMAT = "yyyyMMdd_HHmmss";

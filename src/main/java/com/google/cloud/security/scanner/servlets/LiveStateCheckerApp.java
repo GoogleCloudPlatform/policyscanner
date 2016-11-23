@@ -79,9 +79,10 @@ public class LiveStateCheckerApp extends HttpServlet {
           .run();
     } catch (DataflowJobException de) {
       DataflowPipelineJob job = de.getJob();
-      String message = "There was an error in the Dataflow job.\nYou can see the job details here: "
-          + "https://console.cloud.google.com/dataflow/job/" + job.getJobId()
-          + "?project=" + job.getProjectId();
+      String message = String.format(
+          "There was an error in the Dataflow job.\nYou can see the job details here: "
+          + "https://console.cloud.google.com/dataflow/job/%s?project=%s",
+          job.getJobId(), job.getProjectId());
       throw new PolicyScannerDataflowException(message, de);
     }
 

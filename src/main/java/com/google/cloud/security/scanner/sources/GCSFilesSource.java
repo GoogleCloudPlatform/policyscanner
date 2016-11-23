@@ -85,15 +85,18 @@ public class GCSFilesSource extends BoundedSource<KV<List<String>, String>> {
       // test that the bucket actually exists.
       getStorageApiStub().buckets().get(bucket).execute();
     } catch (GoogleJsonResponseException gjre) {
-      throw new BucketAccessException("Can't access bucket \"gs://" + bucket + "\".\n\n"
-          + "1. Check that your appengine-web.xml has the correct environment variables.\n"
-          + "2. Check your project IAM settings: the Compute Engine service account should\n"
-          + "   have Editor access (or at least Storage Object Creator) if you're running\n"
-          + "   on production. If you are running this locally, your user account or group\n"
-          + "   should be granted Storage Object Creator.\n"
-          + "3. Try re-authing your application-default credentials with this command:\n\n"
-          + "   $ gcloud auth application-default login\n\n"
-          + "More details:\n" + gjre.getContent());
+      String msgFormat = new StringBuilder()
+          .append("Can't access bucket \"gs://%s\".\n\n")
+          .append("1. Check that your appengine-web.xml has the correct environment variables.\n")
+          .append("2. Check your project IAM settings: the Compute Engine service account should\n")
+          .append("   have Editor access (or at least Storage Object Creator) if you're running\n")
+          .append("   on production. If you are running this locally, your user account or group\n")
+          .append("   should be granted Storage Object Creator.\n")
+          .append("3. Try re-authing your application-default credentials with this command:\n\n")
+          .append("   $ gcloud auth application-default login\n\n")
+          .append("More details:\n%s").toString();
+      String message = String.format(msgFormat, bucket, gjre.getContent());
+      throw new BucketAccessException(message);
     }
   }
 

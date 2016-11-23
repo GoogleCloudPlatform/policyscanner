@@ -61,13 +61,16 @@ public class FileToState
         GCPResourceState policy = new GCPResourcePolicy(project, bindings);
         processContext.output(KV.of((GCPResource) project, policy));
       } catch (JsonSyntaxException jse) {
-        throw new IllegalArgumentException("Policy file has invalid json. "
-            + "Check \"" + filePath.get(0) + "/" + filePath.get(1) + "/"
-            + filePath.get(2) + "\"\nFile content is: \n" + fileContent, jse);
+        throw new IllegalArgumentException(String.format(
+            "Policy file has invalid json. Check \"%s/%s/%s\"\nFile content is: \n%s",
+            filePath.get(0), filePath.get(1), filePath.get(2), fileContent),
+            jse);
       }
     }
     else {
-      throw new IllegalArgumentException("Malformed input to FileToState. Filepath: " + filePath);
+      throw new IllegalArgumentException(String.format(
+          "Malformed input to FileToState. Filepath: %s/%s/%s",
+          filePath.get(0), filePath.get(1), filePath.get(2)));
     }
   }
 }
