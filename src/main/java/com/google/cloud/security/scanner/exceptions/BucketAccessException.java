@@ -16,9 +16,9 @@
 
 package com.google.cloud.security.scanner.exceptions;
 
-public class InvalidBucketException extends RuntimeException {
+public class BucketAccessException extends RuntimeException {
 
-  public InvalidBucketException(String message) {
+  public BucketAccessException(String message) {
     super(message);
   }
 }

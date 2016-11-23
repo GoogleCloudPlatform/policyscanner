@@ -22,12 +22,13 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyString;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
@@ -35,6 +36,7 @@ import com.google.cloud.dataflow.sdk.io.BoundedSource.BoundedReader;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.security.scanner.exceptions.BucketAccessException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -52,6 +54,7 @@ import org.mockito.stubbing.Answer;
 @RunWith(JUnit4.class)
 public class GCSFilesSourceTest {
   private static final String BUCKET = "cloud-security-scanner-test";
+  private static final String FORBIDDEN_BUCKET = "inaccessible-bucket";
   private static final String REPOSITORY = "sampleOrgId";
 
   private GCSFilesSource source;
@@ -75,11 +78,13 @@ public class GCSFilesSourceTest {
     when(this.objects.get(anyString(), anyString())).thenReturn(this.objectGet);
     when(this.gcs.objects()).thenReturn(this.objects);
 
-    when(this.buckets.get(anyString())).thenReturn(this.bucketGet);
+    when(this.buckets.get(BUCKET)).thenReturn(this.bucketGet);
     when(this.gcs.buckets()).thenReturn(this.buckets);
 
     GCSFilesSource.setStorageApiStub(gcs);
     source = new GCSFilesSource(BUCKET, REPOSITORY);
+
+    when(this.buckets.get(FORBIDDEN_BUCKET)).thenThrow(GoogleJsonResponseException.class);
   }
 
   @Test
@@ -273,5 +278,11 @@ public class GCSFilesSourceTest {
     } catch (IOException e) {
       fail();
     }
+  }
+
+  @Test(expected=BucketAccessException.class)
+  public void testInaccessibleBucketThrowsException()
+      throws IOException, GeneralSecurityException {
+    new GCSFilesSource(FORBIDDEN_BUCKET, REPOSITORY);
   }
 }
