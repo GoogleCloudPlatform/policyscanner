@@ -24,6 +24,7 @@ import com.google.cloud.security.scanner.primitives.GCPResourcePolicy;
 import com.google.cloud.security.scanner.primitives.GCPResourcePolicy.PolicyBinding;
 import com.google.cloud.security.scanner.primitives.GCPResourceState;
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -54,13 +55,22 @@ public class FileToState
 
       GCPProject project = new GCPProject(filePath.get(1), filePath.get(0));
       Gson gson = new Gson();
-      List<PolicyBinding> bindings = Arrays
-          .asList(gson.fromJson(fileContent, PolicyBinding[].class));
-      GCPResourceState policy = new GCPResourcePolicy(project, bindings);
-      processContext.output(KV.of((GCPResource) project, policy));
+      try {
+        List<PolicyBinding> bindings = Arrays.asList(
+            gson.fromJson(fileContent, PolicyBinding[].class));
+        GCPResourceState policy = new GCPResourcePolicy(project, bindings);
+        processContext.output(KV.of((GCPResource) project, policy));
+      } catch (JsonSyntaxException jse) {
+        throw new IllegalArgumentException(String.format(
+            "Policy file has invalid json. Check \"%s/%s/%s\"\nFile content is: \n%s",
+            filePath.get(0), filePath.get(1), filePath.get(2), fileContent),
+            jse);
+      }
     }
     else {
-      throw new IllegalArgumentException("Malformed input to FileToState.");
+      throw new IllegalArgumentException(String.format(
+          "Malformed input to FileToState. Filepath: %s/%s/%s",
+          filePath.get(0), filePath.get(1), filePath.get(2)));
     }
   }
 }

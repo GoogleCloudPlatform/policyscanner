@@ -42,11 +42,13 @@ import com.google.cloud.security.scanner.actions.modifiers.FindUnmatchedStates;
 import com.google.cloud.security.scanner.actions.modifiers.JoinKnownGoodAndLiveStates;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource;
 import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource.StateSource;
+import com.google.cloud.security.scanner.common.Constants;
 import com.google.cloud.security.scanner.primitives.GCPProject;
 import com.google.cloud.security.scanner.primitives.GCPResource;
 import com.google.cloud.security.scanner.primitives.GCPResourcePolicy;
 import com.google.cloud.security.scanner.primitives.GCPResourceState;
 import com.google.cloud.security.scanner.sources.LiveProjectSource;
+import java.text.MessageFormat;
 import java.util.List;
 import java.util.Map;
 
@@ -58,6 +60,7 @@ public class LiveStateChecker {
   private BoundedSource<KV<List<String>, String>> knownGoodSource;
   private String org;
   private PCollection<String> scannerDiffOutput;
+
   private static PCollection<String> unmatchedStatesOutput;
   private static String diffOutputLocation;
   private static String unmatchedOutputLocation;
@@ -92,6 +95,21 @@ public class LiveStateChecker {
   }
 
   /**
+   * Set the output locations with the user-specified prefix and a datetimestamp.
+   * @param outputPrefix the output file prefix
+   * @param datetimestamp the datetimestamp of the occurring job
+   */
+  public LiveStateChecker setOutputLocationsWithPrefix(String outputPrefix, String datetimestamp) {
+    this.setDiffOutputLocation(MessageFormat.format(Constants.SINK_NAME_FORMAT,
+        new Object[]{outputPrefix, datetimestamp, Constants.OUTPUT_LABEL_SCANNER}));
+    this.setUnmatchedOutputLocation(MessageFormat.format(Constants.SINK_NAME_FORMAT,
+        new Object[]{outputPrefix, datetimestamp, Constants.OUTPUT_LABEL_UNMATCHED}));
+    this.setErrorOutputLocation(MessageFormat.format(Constants.SINK_NAME_FORMAT,
+        new Object[]{outputPrefix, datetimestamp, Constants.OUTPUT_LABEL_ERROR}));
+    return this;
+  }
+
+  /**
    * Set the scanner diff output location
    * @param sinkUrl The output url prefix for the policy diffs
    */
@@ -120,7 +138,7 @@ public class LiveStateChecker {
 
   /**
    * Get the unmatched states output
-   * @return the unmatched states output of the pipeline
+   * @return the PCollection of the unmatched states output from the pipeline
    */
   public PCollection<String> getUnmatchedStatesOutput() {
     return unmatchedStatesOutput;
@@ -138,8 +156,7 @@ public class LiveStateChecker {
   private static PCollection<String> constructPipeline(
       Pipeline pipeline,
       String org,
-      BoundedSource<KV<List<String>,
-      String>> knownGoodSource) {
+      BoundedSource<KV<List<String>, String>> knownGoodSource) {
     // Read files from GCS.
     PCollection<KV<List<String>, String>> knownGoodFiles =
         pipeline.apply("Read known-good data", Read.from(knownGoodSource));

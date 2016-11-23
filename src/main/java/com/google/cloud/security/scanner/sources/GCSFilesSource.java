@@ -18,6 +18,7 @@ package com.google.cloud.security.scanner.sources;
 
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.jackson2.JacksonFactory;
@@ -31,6 +32,7 @@ import com.google.cloud.dataflow.sdk.coders.StringUtf8Coder;
 import com.google.cloud.dataflow.sdk.io.BoundedSource;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.security.scanner.exceptions.BucketAccessException;
 import com.google.common.base.Preconditions;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -79,8 +81,23 @@ public class GCSFilesSource extends BoundedSource<KV<List<String>, String>> {
     this.bucket = bucket;
     this.repository = repository;
 
-    // test that the bucket actually exists.
-    getStorageApiStub().buckets().get(bucket).execute();
+    try {
+      // test that the bucket actually exists.
+      getStorageApiStub().buckets().get(bucket).execute();
+    } catch (GoogleJsonResponseException gjre) {
+      String msgFormat = new StringBuilder()
+          .append("Can't access bucket \"gs://%s\".\n\n")
+          .append("1. Check that your appengine-web.xml has the correct environment variables.\n")
+          .append("2. Check your project IAM settings: the Compute Engine service account should\n")
+          .append("   have Editor access (or at least Storage Object Creator) if you're running\n")
+          .append("   on production. If you are running this locally, your user account or group\n")
+          .append("   should be granted Storage Object Creator.\n")
+          .append("3. Try re-authing your application-default credentials with this command:\n\n")
+          .append("   $ gcloud auth application-default login\n\n")
+          .append("More details:\n%s").toString();
+      String message = String.format(msgFormat, bucket, gjre.getContent());
+      throw new BucketAccessException(message);
+    }
   }
 
   /**

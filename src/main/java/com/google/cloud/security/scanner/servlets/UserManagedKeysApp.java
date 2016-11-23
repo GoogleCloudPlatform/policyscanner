@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
 import com.google.cloud.security.scanner.common.CloudUtil;
+import com.google.cloud.security.scanner.common.Constants;
 import com.google.cloud.security.scanner.pipelines.ExportedServiceAccountKeyRemover;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -38,24 +39,20 @@ public class UserManagedKeysApp extends HttpServlet {
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
     PrintWriter out = resp.getWriter();
-    String orgId = System.getenv("POLICY_SCANNER_ORG_ID");
-    String sinkUrl = System.getenv("POLICY_SCANNER_SINK_URL");
-    String dataflowTmpBucket = System.getenv("POLICY_SCANNER_DATAFLOW_TMP_BUCKET");
-    String stagingLocation = "gs://" + dataflowTmpBucket + "/dataflow_tmp";
 
-    Preconditions.checkNotNull(orgId);
-    Preconditions.checkNotNull(sinkUrl);
-    Preconditions.checkNotNull(dataflowTmpBucket);
+    Preconditions.checkNotNull(Constants.ORG_ID);
+    Preconditions.checkNotNull(Constants.OUTPUT_PREFIX);
+    Preconditions.checkNotNull(Constants.DATAFLOW_STAGING);
 
     PipelineOptions options;
     if (CloudUtil.willExecuteOnCloud()) {
-      options = getCloudExecutionOptions(stagingLocation);
+      options = getCloudExecutionOptions(Constants.DATAFLOW_STAGING);
     } else {
       options = getLocalExecutionOptions();
     }
 
-    new ExportedServiceAccountKeyRemover(options, orgId)
-        .attachSink(TextIO.Write.named("Write output messages").to(sinkUrl))
+    new ExportedServiceAccountKeyRemover(options, Constants.ORG_ID)
+        .attachSink(TextIO.Write.named("Write output messages").to(Constants.OUTPUT_PREFIX))
         .run();
     out.println("Test passed! The output was written to GCS");
   }
