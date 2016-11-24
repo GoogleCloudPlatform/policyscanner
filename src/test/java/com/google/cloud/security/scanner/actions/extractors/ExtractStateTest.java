@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.services.cloudresourcemanager.CloudResourceManager.Projects;
 import com.google.api.services.cloudresourcemanager.CloudResourceManager.Projects.GetIamPolicy;
 import com.google.api.services.cloudresourcemanager.model.Binding;
@@ -114,28 +115,19 @@ public class ExtractStateTest {
   }
 
   @Test
-  public void testProjectWithIamErrorsCreatesSideOutput() {
+  public void testProjectWithIamErrorsCreatesSideOutput() throws IOException {
     String projectSuffix = "project-with-error";
     GCPProject project = getSampleProject(projectSuffix);
     List<GCPProject> projects = new ArrayList<>(1);
     projects.add(project);
 
-    GCPProject.setProjectsApiStub(null);
+    when(this.getIamPolicy.execute()).thenThrow(GoogleJsonResponseException.class);
 
     sideOutputTester.processBatch(projects);
     List<GCPResourceErrorInfo> sideOutputs = sideOutputTester.takeSideOutputElements(errorTag);
 
     List<GCPResourceErrorInfo> expected = new ArrayList<>();
-    expected.add(new GCPResourceErrorInfo(project, "Policy error 403 Forbidden\n{\n" +
-        "  \"code\" : 403,\n" +
-        "  \"errors\" : [ {\n" +
-        "    \"domain\" : \"global\",\n" +
-        "    \"message\" : \"The caller does not have permission\",\n" +
-        "    \"reason\" : \"forbidden\"\n" +
-        "  } ],\n" +
-        "  \"message\" : \"The caller does not have permission\",\n" +
-        "  \"status\" : \"PERMISSION_DENIED\"\n" +
-        "}"));
+    expected.add(new GCPResourceErrorInfo(project, "Policy error null"));
     Assert.assertEquals(expected, sideOutputs);
   }
 
