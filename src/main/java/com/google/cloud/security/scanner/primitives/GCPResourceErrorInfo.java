@@ -17,8 +17,9 @@
 package com.google.cloud.security.scanner.primitives;
 
 import com.google.cloud.dataflow.sdk.repackaged.com.google.common.base.Objects;
+import java.io.Serializable;
 
-public class GCPResourceErrorInfo {
+public class GCPResourceErrorInfo implements Serializable {
   private GCPResource gcpResource;
   private String errorMessage;
 
@@ -39,7 +40,7 @@ public class GCPResourceErrorInfo {
   public String toString() {
     return new StringBuilder()
         .append(String.format("resourceId:\"%s\"", this.gcpResource.getId()))
-        .append(String.format("reason:\"%s\"", this.errorMessage))
+        .append(String.format(",reason:\"%s\"", this.errorMessage))
         .toString();
   }
 

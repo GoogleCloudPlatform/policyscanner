@@ -66,7 +66,7 @@ public class ExtractState
     }
 
     if (policy == null) {
-      this.addToSideOutput(processContext, input, "Policy error " + errorMsg);
+      this.addToSideOutput(processContext, input, "Policy error=" + errorMsg);
     } else {
       processContext.output(KV.of((GCPResource) input, policy));
     }
