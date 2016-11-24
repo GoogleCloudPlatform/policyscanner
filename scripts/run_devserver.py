@@ -30,14 +30,30 @@ import xml.etree.ElementTree as ETree
 from distutils.spawn import find_executable
 
 APPID_REGEX = re.compile('\$\{app\.id\}')
+APPENGINEWEB_LOCATION = './src/main/webapp/WEB-INF/appengine-web.xml'
+POMXML_LOCATION = './pom.xml'
 
 def run():
+    ensure_cwd_project_root()
     ensure_mvn_installed()
     project_id = find_project_id()
     print 'Project Id: {}'.format(project_id)
     run_with_env_vars(project_id)
 
+def ensure_cwd_project_root():
+    """
+    Ensure that the current working directory is the root of the project
+    directory, i.e. the scripts/ directory should be in the cwd.
+    """
+    if not os.path.isfile('./scripts/run_devserver.py'):
+        print ('Run this script from the root Policy Scanner directory, i.e.'
+               '\n\n    python ./scripts/run_devserver.py\n')
+        sys.exit(1)
+
 def ensure_mvn_installed():
+    """
+    Check to make sure that Maven (mvn) is installed.
+    """
     mvn_cmd = find_executable('mvn')
     if not mvn_cmd:
         print ('I could not find the `mvn` tool. Did you install it?\n'
@@ -47,9 +63,9 @@ def ensure_mvn_installed():
 
 def find_project_id():
     """
-    Parse pom.xml to get the project_id and replace 
+    Parse pom.xml to get the project_id
     """
-    tree = ETree.parse('./pom.xml')
+    tree = ETree.parse(POMXML_LOCATION)
     root = tree.getroot()
     project_id = None
 
@@ -71,7 +87,7 @@ def run_with_env_vars(project_id):
         print 'Invalid project id! Did you set it in the <app.id> in pom.xml?'
         sys.exit(1)
 
-    tree = ETree.parse('./src/main/webapp/WEB-INF/appengine-web.xml')
+    tree = ETree.parse(APPENGINEWEB_LOCATION)
     root = tree.getroot()
     ns = {'appengine': 'http://appengine.google.com/ns/1.0'}
     env_vars = root.findall('appengine:env-variables', ns)

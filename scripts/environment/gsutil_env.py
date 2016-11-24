@@ -31,7 +31,7 @@ class GsutilEnvironment(object):
     """
 
     DEFAULT_BUCKETNAME_POLICIES = 'gs://{}_policies'
-    DEFAULT_BUCKETNAME_OUTPUT = 'gs://{}.appspot.com'
+    DEFAULT_BUCKETNAME_OUTPUT = 'gs://{}_output'
     GCS_LS_ERROR_REGEX = re.compile('^(.*Exception): (\d{3})', re.MULTILINE)
 
     def __init__(self, projects_filename=None):
@@ -174,8 +174,9 @@ class GsutilEnvironment(object):
           out, err = p.communicate()
           if p.returncode:
               print err
-              if self._should_force_use_bucket(bucket_name, err):
-                  break
+
+          if not p.returncode or self._should_force_use_bucket(bucket_name, err):
+              break
 
         return bucket_name
 
