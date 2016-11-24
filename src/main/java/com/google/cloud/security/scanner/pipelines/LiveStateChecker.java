@@ -36,6 +36,7 @@ import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import com.google.cloud.security.scanner.actions.extractors.ExtractState;
 import com.google.cloud.security.scanner.actions.extractors.FileToState;
 import com.google.cloud.security.scanner.actions.messengers.PolicyDiscrepancyMessenger;
+import com.google.cloud.security.scanner.actions.messengers.ResourceErrorMessenger;
 import com.google.cloud.security.scanner.actions.messengers.UnmatchedStatesMessenger;
 import com.google.cloud.security.scanner.actions.modifiers.FilterOutPolicies;
 import com.google.cloud.security.scanner.actions.modifiers.FindUnmatchedStates;
@@ -45,6 +46,7 @@ import com.google.cloud.security.scanner.actions.modifiers.TagStateWithSource.St
 import com.google.cloud.security.scanner.common.Constants;
 import com.google.cloud.security.scanner.primitives.GCPProject;
 import com.google.cloud.security.scanner.primitives.GCPResource;
+import com.google.cloud.security.scanner.primitives.GCPResourceErrorInfo;
 import com.google.cloud.security.scanner.primitives.GCPResourcePolicy;
 import com.google.cloud.security.scanner.primitives.GCPResourceState;
 import com.google.cloud.security.scanner.sources.LiveProjectSource;
@@ -176,17 +178,15 @@ public class LiveStateChecker {
     // Extract project states.
     final TupleTag<KV<GCPResource, GCPResourceState>> liveStatesSuccessTag =
         new TupleTag<KV<GCPResource, GCPResourceState>>(){};
-    final TupleTag<String> liveStatesErrorTag = new TupleTag<String>(){};
+    final TupleTag<GCPResourceErrorInfo> liveStatesErrorTag =
+        new TupleTag<GCPResourceErrorInfo>(){};
 
     PCollectionTuple liveStatesTuple = liveProjects.apply(
         ParDo.named("Extract project policies")
             .of(new ExtractState(liveStatesErrorTag))
             .withOutputTags(liveStatesSuccessTag, TupleTagList.of(liveStatesErrorTag)));
 
-    if (errorOutputLocation != null) {
-      liveStatesTuple.get(liveStatesErrorTag).apply(
-          TextIO.Write.named("Write project policy read errors").to(errorOutputLocation));
-    }
+    writeErrorOutput(liveStatesTuple.get(liveStatesErrorTag));
 
     PCollection<KV<GCPResource, GCPResourceState>> liveStates =
         liveStatesTuple.get(liveStatesSuccessTag);
@@ -250,5 +250,19 @@ public class LiveStateChecker {
     }
 
     return discrepancyOutput;
+  }
+
+  /**
+   * Write the errors from the DoFns to the error sink.
+   * @param errors the PCollection of errors from the DoFns
+   */
+  private static void writeErrorOutput(PCollection<GCPResourceErrorInfo> errors) {
+    if (errorOutputLocation != null) {
+      errors
+          .apply(
+              ParDo.named("Format error messages").of(new ResourceErrorMessenger()))
+          .apply(
+              TextIO.Write.named("Write project policy read errors").to(errorOutputLocation));
+    }
   }
 }

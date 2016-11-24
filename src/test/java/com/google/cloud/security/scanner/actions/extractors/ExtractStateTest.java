@@ -29,8 +29,11 @@ import com.google.api.services.cloudresourcemanager.model.GetIamPolicyRequest;
 import com.google.api.services.cloudresourcemanager.model.Policy;
 import com.google.cloud.dataflow.sdk.transforms.DoFnTester;
 import com.google.cloud.dataflow.sdk.values.KV;
+import com.google.cloud.dataflow.sdk.values.TupleTag;
+import com.google.cloud.dataflow.sdk.values.TupleTagList;
 import com.google.cloud.security.scanner.primitives.GCPProject;
 import com.google.cloud.security.scanner.primitives.GCPResource;
+import com.google.cloud.security.scanner.primitives.GCPResourceErrorInfo;
 import com.google.cloud.security.scanner.primitives.GCPResourcePolicy;
 import com.google.cloud.security.scanner.primitives.GCPResourcePolicy.PolicyBinding;
 import com.google.cloud.security.scanner.primitives.GCPResourceState;
@@ -39,6 +42,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -54,10 +58,22 @@ public class ExtractStateTest {
   private GetIamPolicy getIamPolicy;
   private DoFnTester<GCPProject, KV<GCPResource, GCPResourceState>> tester;
 
+  private static DoFnTester<GCPProject, KV<GCPResource, GCPResourceState>> sideOutputTester;
+  private static final TupleTag<KV<GCPResource, GCPResourceState>> successTag =
+      new TupleTag<KV<GCPResource, GCPResourceState>>(){};
+  private static final TupleTag<GCPResourceErrorInfo> errorTag = new TupleTag<GCPResourceErrorInfo>(){};
+  private static TupleTagList tupleTags = TupleTagList.of(successTag).and(errorTag);
+
+  static {
+    sideOutputTester = DoFnTester.of(new ExtractState(errorTag));
+    sideOutputTester.setSideOutputTags(tupleTags);
+  }
+
   @Before
   public void setUp() throws IOException {
-    GCPProject.setProjectsApiStub(this.projectsApiObject);
     this.projectsApiObject = mock(Projects.class);
+    GCPProject.setProjectsApiStub(this.projectsApiObject);
+
     this.getIamPolicy = mock(Projects.GetIamPolicy.class);
     this.tester = DoFnTester.of(new ExtractState());
     when(this.projectsApiObject.getIamPolicy(anyString(), any(GetIamPolicyRequest.class)))
@@ -70,7 +86,6 @@ public class ExtractStateTest {
     List<GCPProject> projects = new ArrayList<>(1);
     projects.add(project);
 
-    GCPProject.setProjectsApiStub(this.projectsApiObject);
     when(this.getIamPolicy.execute()).thenReturn(getSamplePolicy(1));
     List<KV<GCPResource, GCPResourceState>> results = this.tester.processBatch(projects);
     assertEquals(results.size(), 1);
@@ -88,7 +103,6 @@ public class ExtractStateTest {
       projects.add(project);
     }
 
-    GCPProject.setProjectsApiStub(this.projectsApiObject);
     when(this.getIamPolicy.execute()).thenReturn(getSamplePolicy(1));
     List<KV<GCPResource, GCPResourceState>> results = this.tester.processBatch(projects);
     assertEquals(results.size(), elementCount);
@@ -96,6 +110,48 @@ public class ExtractStateTest {
       assertEquals(results.get(i).getKey(), getSampleProject(""));
       assertEquals(results.get(i).getValue(), getSampleGCPResourcePolicy(project));
     }
+  }
+
+  @Test
+  public void testProjectWithIamErrorsCreatesSideOutput() {
+    String projectSuffix = "project-with-error";
+    GCPProject project = getSampleProject(projectSuffix);
+    List<GCPProject> projects = new ArrayList<>(1);
+    projects.add(project);
+
+    GCPProject.setProjectsApiStub(null);
+
+    sideOutputTester.processBatch(projects);
+    List<GCPResourceErrorInfo> sideOutputs = sideOutputTester.takeSideOutputElements(errorTag);
+
+    List<GCPResourceErrorInfo> expected = new ArrayList<>();
+    expected.add(new GCPResourceErrorInfo(project, "Policy error 403 Forbidden\n{\n" +
+        "  \"code\" : 403,\n" +
+        "  \"errors\" : [ {\n" +
+        "    \"domain\" : \"global\",\n" +
+        "    \"message\" : \"The caller does not have permission\",\n" +
+        "    \"reason\" : \"forbidden\"\n" +
+        "  } ],\n" +
+        "  \"message\" : \"The caller does not have permission\",\n" +
+        "  \"status\" : \"PERMISSION_DENIED\"\n" +
+        "}"));
+    Assert.assertEquals(expected, sideOutputs);
+  }
+
+  @Test
+  public void testProjectWithNoIamErrorsCreatesNoSideOutput() throws IOException {
+    String projectSuffix = "project-with-no-error";
+    GCPProject project = getSampleProject(projectSuffix);
+    List<GCPProject> projects = new ArrayList<>(1);
+    projects.add(project);
+
+    when(this.getIamPolicy.execute()).thenReturn(getSamplePolicy(1));
+
+    sideOutputTester.processBatch(projects);
+    List<GCPResourceErrorInfo> sideOutputs = sideOutputTester.takeSideOutputElements(errorTag);
+
+    List<GCPResourceErrorInfo> expected = new ArrayList<>();
+    Assert.assertEquals(expected, sideOutputs);
   }
 
   private GCPProject getSampleProject(String suffix) {
