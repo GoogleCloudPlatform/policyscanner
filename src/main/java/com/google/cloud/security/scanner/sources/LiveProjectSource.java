@@ -38,8 +38,8 @@ public class LiveProjectSource extends BoundedSource<GCPProject> {
 
   /**
    * Constructor for LiveProjectSource.
-   * @param orgId The orgId ID of the orgId to read from.
-   * null to read from all visible orgs.
+   * @param orgId The ID of the organization from which we read the projects list.
+   *  Set as null to read from all visible orgs.
    */
   public LiveProjectSource(String orgId) {
     this.orgId = orgId;

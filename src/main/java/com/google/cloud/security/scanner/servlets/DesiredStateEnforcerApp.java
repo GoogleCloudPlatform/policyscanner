@@ -51,38 +51,37 @@ public class DesiredStateEnforcerApp extends HttpServlet {
   public void doGet(HttpServletRequest req, HttpServletResponse resp)
       throws IOException {
     PrintWriter out = resp.getWriter();
-    String org = System.getenv("POLICY_SCANNER_ORG_NAME");
-    String orgId = System.getenv("POLICY_SCANNER_ORG_ID");
-    String inputRepositoryUrl = System.getenv("POLICY_SCANNER_INPUT_REPOSITORY_URL");
-    String sinkUrl = System.getenv("POLICY_SCANNER_SINK_URL");
-    String dataflowTmpBucket = System.getenv("POLICY_SCANNER_DATAFLOW_TMP_BUCKET");
-    String stagingLocation = "gs://" + dataflowTmpBucket + "/dataflow_tmp";
 
-    Preconditions.checkNotNull(org);
-    Preconditions.checkNotNull(orgId);
-    Preconditions.checkNotNull(inputRepositoryUrl);
-    Preconditions.checkNotNull(sinkUrl);
-    Preconditions.checkNotNull(dataflowTmpBucket);
-    GCSFilesSource source;
+    Preconditions.checkNotNull(Constants.ORG_NAME);
+    Preconditions.checkNotNull(Constants.ORG_ID);
+    Preconditions.checkNotNull(Constants.POLICY_BUCKET);
+    Preconditions.checkNotNull(Constants.OUTPUT_PREFIX);
+    Preconditions.checkNotNull(Constants.DATAFLOW_STAGING);
+
+    GCSFilesSource source = null;
     try {
-      source = new GCSFilesSource(inputRepositoryUrl, org);
+      source = new GCSFilesSource(Constants.POLICY_BUCKET, Constants.ORG_NAME);
     } catch (GeneralSecurityException e) {
       throw new IOException("SecurityException: Cannot create GCSFileSource");
     }
     PipelineOptions options;
     if (CloudUtil.willExecuteOnCloud()) {
-      options = getCloudExecutionOptions(stagingLocation);
+      options = getCloudExecutionOptions(Constants.DATAFLOW_STAGING);
     } else {
       options = getLocalExecutionOptions();
     }
     String datetimestamp = new SimpleDateFormat(Constants.SINK_TIMESTAMP_FORMAT).format(new Date());
     DesiredStateEnforcer enforcer = null;
     try {
-      enforcer = new DesiredStateEnforcer(options, source, orgId)
+      enforcer = new DesiredStateEnforcer(options, source, Constants.ORG_ID)
           .attachSink(TextIO.Write
               .named("Write messages to GCS")
               .to(MessageFormat.format(Constants.SINK_NAME_FORMAT,
-                  new Object[]{sinkUrl, datetimestamp, Constants.OUTPUT_LABEL_ENFORCER})))
+                  new Object[]{
+                      Constants.OUTPUT_PREFIX,
+                      datetimestamp,
+                      Constants.OUTPUT_LABEL_ENFORCER
+                      })))
           .run();
       if (enforcer.getTotalEnforcedStates() < 1) {
         out.println("Finished running Enforcer! No states needed to be enforced.");

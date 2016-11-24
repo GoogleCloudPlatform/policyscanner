@@ -18,6 +18,14 @@ package com.google.cloud.security.scanner.common;
 
 /** Constants that are used by this application */
 public final class Constants {
+  // environment variables
+  public static final String ORG_NAME = System.getenv("POLICY_SCANNER_ORG_NAME");
+  public static final String ORG_ID = System.getenv("POLICY_SCANNER_ORG_ID");
+  public static final String POLICY_BUCKET = System.getenv("POLICY_SCANNER_INPUT_REPOSITORY_URL");
+  public static final String OUTPUT_PREFIX = System.getenv("POLICY_SCANNER_SINK_URL");
+  public static final String DATAFLOW_STAGING =
+      String.format("gs://%s/dataflow_tmp", System.getenv("POLICY_SCANNER_DATAFLOW_TMP_BUCKET"));
+
   // format strings
   public static final String SINK_TIMESTAMP_FORMAT = "yyyyMMdd_HHmmss";
   public static final String SINK_NAME_FORMAT = "{0}-{1}-{2}";

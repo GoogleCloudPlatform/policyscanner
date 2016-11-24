@@ -23,6 +23,7 @@ import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
 import com.google.cloud.dataflow.sdk.runners.BlockingDataflowPipelineRunner;
 import com.google.cloud.security.scanner.common.CloudUtil;
+import com.google.cloud.security.scanner.common.Constants;
 import com.google.cloud.security.scanner.pipelines.OnDemandLiveStateChecker;
 import com.google.cloud.security.scanner.sources.GCSFilesSource;
 import com.google.common.base.Preconditions;
@@ -40,30 +41,24 @@ public class LiveStateCheckerRunner {
    * @throws IOException Thrown if there's an error reading from one of the APIs.
    */
   public static void main(String[] args) throws IOException {
-    String org = System.getenv("POLICY_SCANNER_ORG_NAME");
-    String inputRepositoryUrl = System.getenv("POLICY_SCANNER_INPUT_REPOSITORY_URL");
-    String sinkUrl = System.getenv("POLICY_SCANNER_SINK_URL");
-    String dataflowTmpBucket = System.getenv("POLICY_SCANNER_DATAFLOW_TMP_BUCKET");
-    String stagingLocation = "gs://" + dataflowTmpBucket + "/dataflow_tmp";
-
-    Preconditions.checkNotNull(org);
-    Preconditions.checkNotNull(inputRepositoryUrl);
-    Preconditions.checkNotNull(sinkUrl);
-    Preconditions.checkNotNull(dataflowTmpBucket);
-    GCSFilesSource source;
+    Preconditions.checkNotNull(Constants.ORG_NAME);
+    Preconditions.checkNotNull(Constants.POLICY_BUCKET);
+    Preconditions.checkNotNull(Constants.OUTPUT_PREFIX);
+    Preconditions.checkNotNull(Constants.DATAFLOW_STAGING);
+    GCSFilesSource source = null;
     try {
-      source = new GCSFilesSource(inputRepositoryUrl, org);
+      source = new GCSFilesSource(Constants.POLICY_BUCKET, Constants.ORG_NAME);
     } catch (GeneralSecurityException e) {
       throw new IOException("SecurityException: Cannot create GCSFileSource");
     }
     PipelineOptions options;
     if (CloudUtil.willExecuteOnCloud()) {
-      options = getCloudExecutionOptions(stagingLocation);
+      options = getCloudExecutionOptions(Constants.DATAFLOW_STAGING);
     } else {
       options = getLocalExecutionOptions();
     }
     new OnDemandLiveStateChecker(options, source)
-        .attachSink(TextIO.Write.named("Write messages to GCS").to(sinkUrl))
+        .attachSink(TextIO.Write.named("Write messages to GCS").to(Constants.OUTPUT_PREFIX))
         .run();
   }
 
