@@ -61,7 +61,8 @@ public class ExtractStateTest {
   private static DoFnTester<GCPProject, KV<GCPResource, GCPResourceState>> sideOutputTester;
   private static final TupleTag<KV<GCPResource, GCPResourceState>> successTag =
       new TupleTag<KV<GCPResource, GCPResourceState>>(){};
-  private static final TupleTag<GCPResourceErrorInfo> errorTag = new TupleTag<GCPResourceErrorInfo>(){};
+  private static final TupleTag<GCPResourceErrorInfo> errorTag =
+      new TupleTag<GCPResourceErrorInfo>(){};
   private static TupleTagList tupleTags = TupleTagList.of(successTag).and(errorTag);
 
   static {

@@ -67,6 +67,8 @@ public class LiveStateChecker {
   private static String diffOutputLocation;
   private static String unmatchedOutputLocation;
   private static String errorOutputLocation;
+  private static final TupleTag<GCPResourceErrorInfo> errorTag =
+      new TupleTag<GCPResourceErrorInfo>(){};
 
   /**
    * Construct a LiveStateChecker to compare the live states of GCP resources
@@ -159,37 +161,42 @@ public class LiveStateChecker {
       Pipeline pipeline,
       String org,
       BoundedSource<KV<List<String>, String>> knownGoodSource) {
-    // Read files from GCS.
+    // TupleTag for extracting GCPResourceStates
+    final TupleTag<KV<GCPResource, GCPResourceState>> resourceStateSuccessTag =
+        new TupleTag<KV<GCPResource, GCPResourceState>>(){};
+
+    // Read policy files from GCS.
     PCollection<KV<List<String>, String>> knownGoodFiles =
         pipeline.apply("Read known-good data", Read.from(knownGoodSource));
-    // Convert files to GCPResourceState objects.
+
+    // Convert policy files to GCPResourceState objects.
+    PCollectionTuple knownGoodStatesTuple = knownGoodFiles.apply(
+        ParDo.named("Convert known-good policy files to Java objects")
+            .of(new FileToState(errorTag))
+            .withOutputTags(resourceStateSuccessTag, TupleTagList.of(errorTag)));
+
+    PCollection<GCPResourceErrorInfo> knownGoodProcessErrors = knownGoodStatesTuple.get(errorTag);
     PCollection<KV<GCPResource, GCPResourceState>> knownGoodStates =
-        knownGoodFiles.apply(ParDo.named("Convert file data to Java Objects")
-            .of(new FileToState()));
+        knownGoodStatesTuple.get(resourceStateSuccessTag);
+
     // Tag the state objects to indicate they're from a checked-in repo and not live.
     PCollection<KV<GCPResource, KV<StateSource, GCPResourceState>>> taggedKnownGoodStates =
         knownGoodStates.apply(ParDo.named("Mark states as being known-good")
             .of(new TagStateWithSource(StateSource.DESIRED)));
 
-    // Read projects from the CRM API.
+    // Read projects from the Cloud Resource Manager API.
     PCollection<GCPProject> liveProjects =
         pipeline.apply("Read live projects", Read.from(new LiveProjectSource(org)));
 
-    // Extract project states.
-    final TupleTag<KV<GCPResource, GCPResourceState>> liveStatesSuccessTag =
-        new TupleTag<KV<GCPResource, GCPResourceState>>(){};
-    final TupleTag<GCPResourceErrorInfo> liveStatesErrorTag =
-        new TupleTag<GCPResourceErrorInfo>(){};
-
+    // Extract live project states to GCPResourceState objects.
     PCollectionTuple liveStatesTuple = liveProjects.apply(
-        ParDo.named("Extract project policies")
-            .of(new ExtractState(liveStatesErrorTag))
-            .withOutputTags(liveStatesSuccessTag, TupleTagList.of(liveStatesErrorTag)));
+        ParDo.named("Extract live project policies")
+            .of(new ExtractState(errorTag))
+            .withOutputTags(resourceStateSuccessTag, TupleTagList.of(errorTag)));
 
-    writeErrorOutput(liveStatesTuple.get(liveStatesErrorTag));
-
+    PCollection<GCPResourceErrorInfo> liveProcessErrors = liveStatesTuple.get(errorTag);
     PCollection<KV<GCPResource, GCPResourceState>> liveStates =
-        liveStatesTuple.get(liveStatesSuccessTag);
+        liveStatesTuple.get(resourceStateSuccessTag);
 
     // Tag the states to indicate they're live and not from a checked-in source.
     PCollection<KV<GCPResource, KV<StateSource, GCPResourceState>>> taggedLiveStates =
@@ -197,12 +204,13 @@ public class LiveStateChecker {
             .apply(ParDo.named("Mark states as being live")
             .of(new TagStateWithSource(StateSource.LIVE)));
 
+    // Create views of the states
     PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> knownGoodStatesView =
         taggedKnownGoodStates.apply(View.<GCPResource, KV<StateSource, GCPResourceState>>asMap());
     PCollectionView<Map<GCPResource, KV<StateSource, GCPResourceState>>> liveStatesView =
         taggedLiveStates.apply(View.<GCPResource, KV<StateSource, GCPResourceState>>asMap());
 
-    // Find unmatched states (known good with no matching live/live with no matching known-good)
+    // Find unmatched states (known good with no matching live; live with no matching known-good)
     PCollection<KV<String, GCPResource>> unmatchedKnownGoodStates =
         taggedKnownGoodStates.apply(
             ParDo.named("Find known good states with no matching live states")
@@ -249,20 +257,17 @@ public class LiveStateChecker {
           .apply(TextIO.Write.named("Write diff messages to GCS").to(diffOutputLocation));
     }
 
+    // Write errors to text output sink
+    if (errorOutputLocation != null) {
+      PCollectionList
+          .of(knownGoodProcessErrors).and(liveProcessErrors)
+          .apply(Flatten.<GCPResourceErrorInfo>pCollections())
+          .apply(ParDo.named("Generate error messages").of(new ResourceErrorMessenger()))
+          .apply(TextIO.Write.named("Write error messages to GCS").to(errorOutputLocation));
+    }
+
+    // Pipeline result
     return discrepancyOutput;
   }
 
-  /**
-   * Write the errors from the DoFns to the error sink.
-   * @param errors the PCollection of errors from the DoFns
-   */
-  private static void writeErrorOutput(PCollection<GCPResourceErrorInfo> errors) {
-    if (errorOutputLocation != null) {
-      errors
-          .apply(
-              ParDo.named("Format error messages").of(new ResourceErrorMessenger()))
-          .apply(
-              TextIO.Write.named("Write project policy read errors").to(errorOutputLocation));
-    }
-  }
 }

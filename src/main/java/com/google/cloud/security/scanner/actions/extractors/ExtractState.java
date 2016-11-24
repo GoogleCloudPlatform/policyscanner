@@ -46,7 +46,6 @@ public class ExtractState
    * Convert a GCPProject to a Key-Value pair of the project and its policy.
    * @param processContext The ProcessContext object that contains processContext-specific
    * methods and objects.
-   * @throws IllegalArgumentException Thrown when a GCPProject with a null id is encountered.
    */
   @Override
   public void processElement(ProcessContext processContext) {
@@ -66,12 +65,18 @@ public class ExtractState
     }
 
     if (policy == null) {
-      this.addToSideOutput(processContext, input, "Policy error=" + errorMsg);
+      this.addToSideOutput(processContext, input, "Policy error " + errorMsg);
     } else {
       processContext.output(KV.of((GCPResource) input, policy));
     }
   }
 
+  /**
+   * Add some error output to the side output tag
+   * @param context the ProcessContext for this DoFn
+   * @param project the project associated with the error
+   * @param errorMessage the message describing the error
+   */
   private void addToSideOutput(ProcessContext context, GCPProject project, String errorMessage) {
     if (errorOutputTag != null) {
       context.sideOutput(errorOutputTag,
