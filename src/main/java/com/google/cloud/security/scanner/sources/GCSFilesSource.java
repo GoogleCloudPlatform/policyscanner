@@ -161,7 +161,7 @@ public class GCSFilesSource extends BoundedSource<KV<List<String>, String>> {
    * @throws IOException Thrown if there's a IO error using the GCS API.
    */
   String getFilesPage(List<String> fileNames, String nextPageToken)
-      throws GeneralSecurityException, IOException {
+      throws GeneralSecurityException, IOException, BucketAccessException {
     Objects objects =
         getStorageApiStub()
             .objects()
@@ -169,6 +169,15 @@ public class GCSFilesSource extends BoundedSource<KV<List<String>, String>> {
             .setPageToken(nextPageToken)
             .setPrefix(this.repository + this.getDirDelimiter())
             .execute();
+    if (objects == null || objects.getItems() == null) {
+      String messageFormat = new StringBuilder()
+          .append("Can't access objects in gs://%s/%s\n\n")
+          .append("Check that your appengine-web.xml variables are setup correctly.\n")
+          .append("In particular, check the correctness of the following variables:\n\n")
+          .append("    POLICY_SCANNER_ORG_NAME\n")
+          .append("    POLICY_SCANNER_INPUT_REPOSITORY_URL\n").toString();
+      throw new BucketAccessException(String.format(messageFormat, this.bucket, this.repository));
+    }
     for (int i = 0; i < objects.getItems().size(); ++i) {
       String fileName = objects.getItems().get(i).getName();
       if (!fileName.endsWith(getDirDelimiter())) {
