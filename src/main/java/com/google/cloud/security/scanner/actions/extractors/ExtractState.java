@@ -33,7 +33,7 @@ public class ExtractState
   extends DoFn<GCPProject, KV<GCPResource, GCPResourceState>> {
 
   private TupleTag<GCPResourceErrorInfo> errorOutputTag;
-  private transient static final Logger LOG = Logger.getLogger(ExtractState.class.getName());
+  private transient static final Logger logger = Logger.getLogger(ExtractState.class.getName());
 
   public ExtractState() {
   }
@@ -61,7 +61,7 @@ public class ExtractState
       policy = input.getPolicy();
     } catch (Exception e) {
       errorMsg = e.getMessage();
-      LOG.log(Level.FINE, "Error getting policy", e);
+      logger.log(Level.FINE, "Error getting policy", e);
     }
 
     if (policy == null) {
