@@ -33,7 +33,7 @@ import java.util.logging.Logger;
  */
 public class FilePathToLiveState extends DoFn<List<String>,KV<GCPResource, GCPResourceState>> {
 
-  private static final Logger LOG = Logger.getLogger(FilePathToLiveState.class.getName());
+  private static final Logger logger = Logger.getLogger(FilePathToLiveState.class.getName());
 
   /**
    * Convert the file path into the GCP resource object that it corresponds to.
@@ -55,7 +55,7 @@ public class FilePathToLiveState extends DoFn<List<String>,KV<GCPResource, GCPRe
       try {
         policy = project.getPolicy();
       } catch (Exception e) {
-        LOG.log(Level.WARNING, "Error getting policy", e);
+        logger.log(Level.WARNING, "Error getting policy", e);
       }
       if (policy != null) {
         processContext.output(KV.of((GCPResource) project, policy));
