@@ -17,10 +17,17 @@
 package com.google.cloud.security.scanner.common;
 
 import com.google.appengine.api.utils.SystemProperty;
+import com.google.common.util.concurrent.RateLimiter;
 
 public class CloudUtil {
 
+  private static final RateLimiter adminApiRateLimiter = RateLimiter.create(Constants.ADMIN_API_MAX_QPS);
+
   public static boolean willExecuteOnCloud() {
     return SystemProperty.environment.value() == SystemProperty.Environment.Value.Production;
+  }
+
+  public static RateLimiter getAdminApiRateLimiter() {
+    return adminApiRateLimiter;
   }
 }
