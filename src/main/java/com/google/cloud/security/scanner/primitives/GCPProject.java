@@ -28,7 +28,9 @@ import com.google.api.services.cloudresourcemanager.model.Binding;
 import com.google.api.services.cloudresourcemanager.model.GetIamPolicyRequest;
 import com.google.api.services.cloudresourcemanager.model.Policy;
 import com.google.api.services.cloudresourcemanager.model.SetIamPolicyRequest;
+import com.google.cloud.security.scanner.common.CloudUtil;
 import com.google.cloud.security.scanner.primitives.GCPResourcePolicy.PolicyBinding;
+import com.google.common.util.concurrent.RateLimiter;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
@@ -40,6 +42,8 @@ import java.util.Map;
 /** Represents a GCP project. */
 public class GCPProject implements PoliciedObject {
   private static Projects projectApiStub;
+
+  private static final RateLimiter rateLimiter = CloudUtil.getAdminApiRateLimiter();
 
   private String name;
   private String id;
@@ -154,6 +158,9 @@ public class GCPProject implements PoliciedObject {
   public GCPResourcePolicy getPolicy() throws IOException, GeneralSecurityException {
     Map<String, List<String>> bindings = new HashMap<>();
     Policy policy = null;
+
+    rateLimiter.acquire();
+
     try {
       policy = getProjectsApiStub()
           .getIamPolicy(this.id, new GetIamPolicyRequest())
@@ -185,6 +192,8 @@ public class GCPProject implements PoliciedObject {
     Policy policy = new Policy();
     List<Binding> bindings = new ArrayList<>(sourceGCPResourcePolicy.getBindings().size());
     SetIamPolicyRequest request = new SetIamPolicyRequest();
+
+    rateLimiter.acquire();
 
     for (PolicyBinding sourceBinding : sourceGCPResourcePolicy.getBindings()) {
       Binding binding = new Binding();

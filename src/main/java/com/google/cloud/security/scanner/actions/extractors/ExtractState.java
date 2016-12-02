@@ -21,9 +21,8 @@ import com.google.cloud.dataflow.sdk.values.KV;
 import com.google.cloud.dataflow.sdk.values.TupleTag;
 import com.google.cloud.security.scanner.primitives.GCPProject;
 import com.google.cloud.security.scanner.primitives.GCPResource;
+import com.google.cloud.security.scanner.primitives.GCPResourceErrorInfo;
 import com.google.cloud.security.scanner.primitives.GCPResourceState;
-import java.io.IOException;
-import java.security.GeneralSecurityException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,13 +32,13 @@ import java.util.logging.Logger;
 public class ExtractState
   extends DoFn<GCPProject, KV<GCPResource, GCPResourceState>> {
 
-  private TupleTag<String> errorOutputTag;
-  private transient static final Logger LOG = Logger.getLogger(ExtractState.class.getName());
+  private TupleTag<GCPResourceErrorInfo> errorOutputTag;
+  private transient static final Logger logger = Logger.getLogger(ExtractState.class.getName());
 
   public ExtractState() {
   }
 
-  public ExtractState(TupleTag<String> tag) {
+  public ExtractState(TupleTag<GCPResourceErrorInfo> tag) {
     errorOutputTag = tag;
   }
 
@@ -47,32 +46,41 @@ public class ExtractState
    * Convert a GCPProject to a Key-Value pair of the project and its policy.
    * @param processContext The ProcessContext object that contains processContext-specific
    * methods and objects.
-   * @throws IOException Thrown when there's an error reading from the API.
-   * @throws GeneralSecurityException Thrown when there's an error reading from the API.
-   * @throws IllegalArgumentException Thrown when a GCPProject with a null id is encountered.
    */
   @Override
-  public void processElement(ProcessContext processContext)
-      throws IOException, GeneralSecurityException, IllegalArgumentException {
+  public void processElement(ProcessContext processContext) {
     GCPProject input = processContext.element();
 
-    if (input.getId() != null) {
-      GCPResourceState policy = null;
-      try {
-        policy = input.getPolicy();
-      } catch (Exception e) {
-        LOG.log(Level.WARNING, "Error getting policy", e);
-      }
+    if (input.getId() == null) {
+      this.addToSideOutput(processContext, input, "Null project id");
+      return;
+    }
+    GCPResourceState policy = null;
+    String errorMsg = null;
+    try {
+      policy = input.getPolicy();
+    } catch (Exception e) {
+      errorMsg = e.getMessage();
+      logger.log(Level.FINE, "Error getting policy", e);
+    }
 
-      if (policy == null) {
-        if (errorOutputTag != null) {
-          processContext.sideOutput(errorOutputTag, input.getId());
-        }
-      } else {
-        processContext.output(KV.of((GCPResource) input, policy));
-      }
+    if (policy == null) {
+      this.addToSideOutput(processContext, input, String.format("Policy error %s", errorMsg));
     } else {
-      throw new IllegalArgumentException("Found a GCPProject with a null id.");
+      processContext.output(KV.of((GCPResource) input, policy));
+    }
+  }
+
+  /**
+   * Add some error output to the side output tag
+   * @param context the ProcessContext for this DoFn
+   * @param project the project associated with the error
+   * @param errorMessage the message describing the error
+   */
+  private void addToSideOutput(ProcessContext context, GCPProject project, String errorMessage) {
+    if (errorOutputTag != null) {
+      context.sideOutput(errorOutputTag,
+          new GCPResourceErrorInfo(project, errorMessage));
     }
   }
 }

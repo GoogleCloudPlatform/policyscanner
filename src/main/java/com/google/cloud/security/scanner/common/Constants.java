@@ -35,4 +35,7 @@ public final class Constants {
   public static final String OUTPUT_LABEL_SCANNER = "scanner";
   public static final String OUTPUT_LABEL_UNMATCHED = "unmatched";
   public static final String OUTPUT_LABEL_ERROR = "error";
+
+  // Max QPS
+  public static final double ADMIN_API_MAX_QPS = 4.0;
 }

@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-package com.google.cloud.security.scanner.common;
+package com.google.cloud.security.scanner.actions.messengers;
 
-import com.google.appengine.api.utils.SystemProperty;
-import com.google.common.util.concurrent.RateLimiter;
+import com.google.cloud.dataflow.sdk.transforms.DoFn;
+import com.google.cloud.security.scanner.primitives.GCPResourceErrorInfo;
 
-public class CloudUtil {
+public class ResourceErrorMessenger
+    extends DoFn<GCPResourceErrorInfo, String> {
 
-  private static final RateLimiter adminApiRateLimiter = RateLimiter.create(Constants.ADMIN_API_MAX_QPS);
-
-  public static boolean willExecuteOnCloud() {
-    return SystemProperty.environment.value() == SystemProperty.Environment.Value.Production;
+  @Override
+  public void processElement(ProcessContext context)
+      throws Exception {
+    GCPResourceErrorInfo errorInfo = context.element();
+    context.output(errorInfo.toString());
   }
 
-  public static RateLimiter getAdminApiRateLimiter() {
-    return adminApiRateLimiter;
-  }
 }
