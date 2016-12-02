@@ -11,3 +11,6 @@ projects' desired policies, and get alerts every time a project's policy
 doesn't match its intended value.
 
 **[Installation and Configuration](https://github.com/GoogleCloudPlatform/policyscanner/wiki)**
+
+# Disclaimer
+This is not an official Google product.
