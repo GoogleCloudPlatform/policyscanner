@@ -12,21 +12,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Set up the gsutil environment and create buckets and folders that hold
-# the baseline policies for projects.
-#
-# This has been tested with python 2.7.
+"""A tool to set up the gcloud/gsutil environment.
+
+Initializes the gsutil environment and creates buckets and folders that hold
+the known-good policies for projects.
+
+This has been tested with python 2.7.
+"""
 
 import json
+import os
 import re
+import sys
+import time
 
 from distutils.spawn import find_executable
 from gcloud_env import GcloudEnvironment
+from resource_mgr import ResourceManager
 from subprocess import PIPE, Popen, call
 
 class GsutilEnvironment(object):
-    """
-    A class that encapsulates the environment for gsutil and sets up
+    """The environent for automating the bucket setup.
+
+    Encapsulates the environment for gsutil and sets up
     the buckets and base policy files.
     """
 
@@ -50,7 +58,8 @@ class GsutilEnvironment(object):
                         self.output_bucket))
 
     def ensure_environment(self):
-        """
+        """Ensure that the environment is properly set up.
+
         Check the following:
         1. gsutil tool is installed
         2. gcloud tool/environment is logged in (gcloud auth login)
@@ -83,7 +92,8 @@ class GsutilEnvironment(object):
         print self.gcloud_config
 
     def choose_bucket(self, object_type):
-        """
+        """Choose a bucket to use for the policies.
+
         Create or use a specified GCS bucket to store the specified object.
         Also turn on object versioning on the bucket if it stores policy
         objects.
@@ -145,8 +155,7 @@ class GsutilEnvironment(object):
             break
 
     def _create_or_reuse_bucket(self, object_type):
-        """
-        Give the user the option to either create or re-use a bucket.
+        """Give the user the option to either create or re-use a bucket.
 
         This method can be used for either the POLICY or the OUTPUT
         bucket types.
@@ -175,13 +184,15 @@ class GsutilEnvironment(object):
           if p.returncode:
               print err
 
-          if not p.returncode or self._should_force_use_bucket(bucket_name, err):
+          if not p.returncode or \
+              self._should_force_use_bucket(bucket_name, err):
               break
 
         return bucket_name
 
     def _should_force_use_bucket(self, bucket_name, mb_error_text):
-        """
+        """Determine whether we should use the existing bucket.
+
         Parse the error text from gsutil mb and check what the
         exception is. If it's a 409, confirm with the user whether
         they actually want to use that bucket name.
@@ -218,9 +229,7 @@ class GsutilEnvironment(object):
         return False
 
     def _choose_bucket(self, gsls_output):
-        """
-        Present a list of the buckets (from gsutil ls).
-        """
+        """Present a list of the buckets (from gsutil ls)."""
         bucket = None
         buckets = []
         print 'Which bucket do you want to use?'
@@ -237,7 +246,7 @@ class GsutilEnvironment(object):
                 return None
             try:
                 entry_idx = int(entry)
-                if entry_idx-1 < 0 or entry_idx+1 > len(buckets):
+                if entry_idx-1 < 0 or entry_idx > len(buckets):
                     raise IndexError
 
                 bucket = buckets[entry_idx-1]
@@ -249,9 +258,7 @@ class GsutilEnvironment(object):
         return bucket
 
     def _enable_object_versioning(self, bucket):
-        """
-        Enable object versioning on the bucket level.
-        """
+        """Enable object versioning on the bucket level."""
         p = Popen(['gsutil', 'versioning', 'set', 'on', bucket],
                   stdout=PIPE, stderr=PIPE)
         out, err = p.communicate()
@@ -261,8 +268,7 @@ class GsutilEnvironment(object):
                 'Abort operation, the bucket is invalid')
 
     def setup_project_folders(self):
-        """
-        TODO(carise):
+        """Setup the project folders for Policy Scanner.
 
         Read in an input file (optional) of specific project ids or read in all
         projects in organization and create folders (with the project id as the
@@ -271,16 +277,48 @@ class GsutilEnvironment(object):
         For each project, get its IAM policy and save as a json file in its
         respective GCS bucket.
         """
-        pass
-        # for each project, create a folder
+        resource_mgr = ResourceManager()
+        if self.projects_filename:
+            cwd = os.path.abspath(os.path.dirname(sys.argv[0]))
+            policy_dir = cwd+'/policies'
+            if not os.path.exists(policy_dir):
+                os.mkdir(policy_dir)
 
-        # create the scanner output folder
+            with open(self.projects_filename, 'r') as projects:
+                for project in projects:
+                    project_id = project.strip()
+                    project = (resource_mgr.service.projects()
+                               .get(projectId=project_id).execute())
+                    policy_path = '{}/{}/{}'.format(
+                        policy_dir, project['parent']['id'], project_id)
+                    if not os.path.exists(policy_path):
+                        os.makedirs(policy_path)
+                    iam_policy = (resource_mgr.service
+                                  .projects()
+                                  .getIamPolicy(resource=project_id, body={})
+                                  .execute())
+                    with open('{}/POLICY'.format(policy_path),
+                              'w') as policy_file:
+                        json.dump(iam_policy, policy_file)
+
+                    time.sleep(0.5)
+        else:
+            # TODO(carise): read all the projects from organization
+            pass
+
+        print 'Upload policy files...'
+        p = call(['gsutil', '-m', 'cp', '-r', '{}/*'.format(policy_dir),
+                   self.policy_bucket])
+
+        time.sleep(0.5)
+        p = call(['gsutil', 'setmeta', '-h', 'Content-Type:text/plain',
+                  '{}*/*/POLICY'.format(self.policy_bucket)])
 
 class ScannerBucketObject:
+    """Types of bucket objects for Policy Scanner."""
     _unused, POLICY, OUTPUT = range(3)
 
+
 class InvalidBucketException(Exception):
-    """
-    Exception class for invalid bucket name
-    """
+    """Exception class for invalid bucket name."""
     pass
