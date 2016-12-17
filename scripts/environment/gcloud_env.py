@@ -12,9 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Set up the gcloud environment and create a new project with App Engine.
-#
-# This has been tested with python 2.7.
+"""Set up the gcloud environment and create a new project with App Engine.
+
+This has been tested with python 2.7.
+"""
 
 import re
 import time
@@ -22,12 +23,11 @@ import time
 from distutils.spawn import find_executable
 from subprocess import PIPE, Popen, call
 
-class GcloudEnvironment(object):
-    """
-    Encapsulate the gcloud setup in the GcloudEnvironment class
-    """
 
-    PROJECT_ID_REGEX = re.compile('^[a-z][a-z0-9-]{6,30}$')
+class GcloudEnvironment(object):
+    """Encapsulate the gcloud setup in the GcloudEnvironment class."""
+
+    PROJECT_ID_REGEX = re.compile(r'^[a-z][a-z0-9-]{6,30}$')
 
     def __init__(self):
         self.config_name = None
@@ -43,9 +43,7 @@ class GcloudEnvironment(object):
                         self.project_id))
 
     def ensure_installed(self):
-        """
-        Check whether gcloud tool is installed.
-        """
+        """Check whether gcloud tool is installed."""
         gcloud_cmd = find_executable('gcloud')
         if gcloud_cmd:
             print 'Found gcloud tool!'
@@ -56,25 +54,20 @@ class GcloudEnvironment(object):
                 'You can get it here: https://cloud.google.com/sdk/')
 
     def auth_login(self):
-        """
-        User needs to authenticate with Google Cloud Platform account
-        before doing anything else.
-        """
-        return_val = call(['gcloud', 'auth', 'login', '--force'])
-        p = Popen(['gcloud', 'auth', 'list',
-                   '--filter=status:ACTIVE', '--format=value(account)'],
-                  stdout=PIPE, stderr=PIPE)
-        stdout, stderr = p.communicate()
-        if p.returncode:
+        """Authenticate with GCP account. """
+        call(['gcloud', 'auth', 'login', '--force'])
+        proc = Popen(['gcloud', 'auth', 'list',
+                      '--filter=status:ACTIVE', '--format=value(account)'],
+                     stdout=PIPE, stderr=PIPE)
+        stdout, stderr = proc.communicate()
+        if proc.returncode:
             print stderr
 
         if stdout:
-            self.account = stdout.strip()
+            self.auth_account = stdout.strip()
 
     def create_or_use_project(self):
-        """
-        Create a project or enter the id of a project to use.
-        """
+        """Create a project or enter the id of a project to use."""
         project_id = None
 
         while True:
@@ -91,8 +84,7 @@ class GcloudEnvironment(object):
         self._set_config(project_id)
 
     def _create_project(self):
-        """
-        Create the project based on user's input.
+        """Create the project based on user's input.
 
         If the `projects create` command succeeds, its exit status will
         be 0; however, if it fails, its exit status will be 1.
@@ -106,13 +98,10 @@ class GcloudEnvironment(object):
                                     project_id])
                 if exit_status == 0:
                     return project_id
-                    break
         return None
 
     def _use_project(self):
-        """
-        Attempt to describe a project that the user specifies, to verify
-        that the user has access to it.
+        """Verify whether use has access to a project by describing it.
 
         If the `projects describe` command succeeds, its exit status will
         be 0; however, if it fails, its exit status will be 1.
@@ -125,35 +114,29 @@ class GcloudEnvironment(object):
                                 project_id])
             if exit_status == 0:
                 return project_id
-                break
         return None
 
     def _set_config(self, project_id):
-        """
-        Save the gcloud configuration for future use, to remember the
-        environment for future deployment.
-        """
+        """Save the gcloud configuration for future use."""
         print 'Trying to activate configuration {}...'.format(project_id)
         return_val = call(['gcloud', 'config', 'configurations', 'activate',
                            project_id])
         if return_val:
             print 'Creating a new configuration for {}...'.format(project_id)
             call(['gcloud', 'config', 'configurations', 'create', project_id])
-            call(['gcloud', 'config', 'set', 'account', self.account])
+            call(['gcloud', 'config', 'set', 'account', self.auth_account])
 
         call(['gcloud', 'config', 'set', 'project', project_id])
         self.project_id = project_id
 
     def create_or_use_app(self):
-        """
-        Create App Engine environment for project.
-        """
+        """Create App Engine environment for project."""
         regions = []
-        p = Popen(['gcloud', 'app', 'regions', 'list',
-                   '--format=value(region)',
-                   '--filter=flexible:True'],
-                   stdout=PIPE, stderr=PIPE)
-        stdout, stderr = p.communicate()
+        proc = Popen(['gcloud', 'app', 'regions', 'list',
+                      '--format=value(region)',
+                      '--filter=flexible:True'],
+                     stdout=PIPE, stderr=PIPE)
+        stdout, _ = proc.communicate()
         for region in stdout.split('\n'):
             if len(region):
                 regions.append(region.strip())
@@ -173,9 +156,7 @@ class GcloudEnvironment(object):
         call(['gcloud', 'app', 'create', '--region={}'.format(self.region)])
 
     def check_billing(self):
-        """
-        Check whether billing is enabled.
-        """
+        """Check whether billing is enabled."""
         print_instructions = True
         while True:
             billing_proc = Popen(['gcloud', 'alpha', 'billing',
@@ -186,7 +167,7 @@ class GcloudEnvironment(object):
                                     stdin=billing_proc.stdout,
                                     stdout=PIPE, stderr=PIPE)
             billing_proc.stdout.close()
-            out, err = billing_enabled.communicate()
+            out, _ = billing_enabled.communicate()
             if out:
                 print 'Billing has been enabled for this project, continue...'
                 break
@@ -200,9 +181,7 @@ class GcloudEnvironment(object):
                 time.sleep(1)
 
     def _print_billing_instructions(self):
-        """
-        Print billing instructions.
-        """
+        """Print billing instructions."""
         print ('Before enabling the GCP APIs necessary to run '
                'Policy Scanner, you must enable Billing:\n\n'
                '    '
@@ -213,8 +192,8 @@ class GcloudEnvironment(object):
         return False
 
     def enable_apis(self):
-        """
-        Enable the following APIs:
+        """Enable necessary APIs for Policy Scanner.
+
         1. Dataflow
         2. Storage
         3. Resource Manager

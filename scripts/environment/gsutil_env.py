@@ -27,9 +27,10 @@ import sys
 import time
 
 from distutils.spawn import find_executable
-from gcloud_env import GcloudEnvironment
-from resource_mgr import ResourceManager
+from environment.gcloud_env import GcloudEnvironment
+from environment.resource_mgr import ResourceManager
 from subprocess import PIPE, Popen, call
+
 
 class GsutilEnvironment(object):
     """The environent for automating the bucket setup.
@@ -40,7 +41,7 @@ class GsutilEnvironment(object):
 
     DEFAULT_BUCKETNAME_POLICIES = 'gs://{}_policies'
     DEFAULT_BUCKETNAME_OUTPUT = 'gs://{}_output'
-    GCS_LS_ERROR_REGEX = re.compile('^(.*Exception): (\d{3})', re.MULTILINE)
+    GCS_LS_ERROR_REGEX = re.compile(r'^(.*Exception): (\d{3})', re.MULTILINE)
 
     def __init__(self, projects_filename=None):
         self.gcloud_config = GcloudEnvironment()
@@ -73,12 +74,14 @@ class GsutilEnvironment(object):
                 'Could not find gsutil. '
                 'Have you installed the Google Cloud SDK?\n'
                 'You can get it here: https://cloud.google.com/sdk/')
-        p = Popen(['gcloud', 'info', '--format=json'], stdout=PIPE, stderr=PIPE)
-        output, err = p.communicate()
+        proc = Popen(['gcloud', 'info', '--format=json'],
+                     stdout=PIPE, stderr=PIPE)
+        output, _ = proc.communicate()
         try:
             gcloud_info = json.JSONDecoder().decode(output)
             if 'config' in gcloud_info:
-                self.gcloud_config.auth_account = gcloud_info['config']['account']
+                self.gcloud_config.auth_account = (
+                    gcloud_info['config']['account'])
                 self.gcloud_config.project_id = gcloud_info['config']['project']
         except ValueError:
             print 'Failed to get gcloud info, will initialize gcloud'
@@ -98,12 +101,11 @@ class GsutilEnvironment(object):
         Also turn on object versioning on the bucket if it stores policy
         objects.
         """
-        p = Popen(['gsutil', 'ls'], stdout=PIPE, stderr=PIPE)
-        output, err = p.communicate()
-        if p.returncode:
+        proc = Popen(['gsutil', 'ls'], stdout=PIPE, stderr=PIPE)
+        output, err = proc.communicate()
+        if proc.returncode:
             print err
-            from sys import exit
-            exit(p.returncode)
+            sys.exit(proc.returncode)
 
         prompt_tmpl = ('+----------------------+\n'
                         '| Set up {} bucket |\n'
@@ -171,22 +173,23 @@ class GsutilEnvironment(object):
         default_bucket = default_bucket.format(self.gcloud_config.project_id)
 
         while True:
-          bucket_name = raw_input('Enter a bucket name (default: {}): '
-                                  .format(default_bucket)).strip()
-          if not bucket_name:
-              bucket_name = default_bucket
+            bucket_name = raw_input('Enter a bucket name (default: {}): '
+                                    .format(default_bucket)).strip()
+            if not bucket_name:
+                bucket_name = default_bucket
 
-          if not bucket_name.startswith('gs://'):
-              bucket_name = 'gs://{}'.format(bucket_name)
+            if not bucket_name.startswith('gs://'):
+                bucket_name = 'gs://{}'.format(bucket_name)
 
-          p = Popen(['gsutil', 'mb', bucket_name], stdout=PIPE, stderr=PIPE)
-          out, err = p.communicate()
-          if p.returncode:
-              print err
+            proc = Popen(['gsutil', 'mb', bucket_name],
+                         stdout=PIPE, stderr=PIPE)
+            _, err = proc.communicate()
+            if proc.returncode:
+                print err
 
-          if not p.returncode or \
-              self._should_force_use_bucket(bucket_name, err):
-              break
+            if (not proc.returncode or
+                self._should_force_use_bucket(bucket_name, err)):
+                break
 
         return bucket_name
 
@@ -203,28 +206,28 @@ class GsutilEnvironment(object):
 
         mb_exception, res_code_mb = exceptions[0]
         if mb_exception == 'ServiceException' and int(res_code_mb) == 409:
-            p = Popen(['gsutil', 'ls', bucket_name],
-                      stdout=PIPE, stderr=PIPE)
-            ls_out, ls_err = p.communicate()
+            proc = Popen(['gsutil', 'ls', bucket_name],
+                         stdout=PIPE, stderr=PIPE)
+            _, ls_err = proc.communicate()
             ls_exceptions = self.GCS_LS_ERROR_REGEX.findall(ls_err)
-            if p.returncode:
+            if proc.returncode:
                 print ls_err
 
             if len(ls_exceptions):
-                ls_exception, res_code_ls = ls_exceptions[0]
+                _, res_code_ls = ls_exceptions[0]
                 if int(res_code_ls) == 403:
                     print 'You can\'t use this bucket.'
                     return False
 
         while True:
-          should_use = raw_input(
-              'Re-use the bucket "{}"? (y/N) '
-              .format(bucket_name)).strip().lower()
+            should_use = raw_input(
+                'Re-use the bucket "{}"? (y/N) '
+                .format(bucket_name)).strip().lower()
 
-          if should_use == 'y':
-              return True
-          elif should_use == 'n':
-              break
+            if should_use == 'y':
+                return True
+            elif should_use == 'n':
+                break
 
         return False
 
@@ -259,11 +262,11 @@ class GsutilEnvironment(object):
 
     def _enable_object_versioning(self, bucket):
         """Enable object versioning on the bucket level."""
-        p = Popen(['gsutil', 'versioning', 'set', 'on', bucket],
-                  stdout=PIPE, stderr=PIPE)
-        out, err = p.communicate()
+        proc = Popen(['gsutil', 'versioning', 'set', 'on', bucket],
+                     stdout=PIPE, stderr=PIPE)
+        _, err = proc.communicate()
         print err
-        if p.returncode:
+        if proc.returncode:
             raise InvalidBucketException(
                 'Abort operation, the bucket is invalid')
 
@@ -307,14 +310,15 @@ class GsutilEnvironment(object):
             pass
 
         print 'Upload policy files...'
-        p = call(['gsutil', '-m', 'cp', '-r', '{}/*'.format(policy_dir),
-                   self.policy_bucket])
+        call(['gsutil', '-m', 'cp', '-r', '{}/*'.format(policy_dir),
+              self.policy_bucket])
 
         time.sleep(0.5)
-        p = call(['gsutil', 'setmeta', '-h', 'Content-Type:text/plain',
-                  '{}*/*/POLICY'.format(self.policy_bucket)])
+        call(['gsutil', 'setmeta', '-h', 'Content-Type:text/plain',
+              '{}*/*/POLICY'.format(self.policy_bucket)])
 
-class ScannerBucketObject:
+
+class ScannerBucketObject(object):
     """Types of bucket objects for Policy Scanner."""
     _unused, POLICY, OUTPUT = range(3)
 
