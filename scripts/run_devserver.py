@@ -12,13 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-# Before running this script, make sure you set <app.id> in pom.xml.
-#
-# This script scrapes appengine-web.xml and exports the environemnt
-# variables, then runs the App Engine devserver.
-#
-# Usage:
-# $ python run_devserver.py
+"""Wrapper script for running the local devserver.
+
+Before running this script, make sure you set <app.id> in pom.xml.
+
+This script scrapes appengine-web.xml and exports the environemnt
+variables, then runs the App Engine devserver.
+
+Usage:
+$ python ./scripts/run_devserver.py
+"""
 
 import os
 import re
@@ -29,15 +32,32 @@ import xml.etree.ElementTree as ETree
 
 from distutils.spawn import find_executable
 
-APPID_REGEX = re.compile('\$\{app\.id\}')
+APPID_REGEX = re.compile(r'\$\{app\.id\}')
+APPENGINEWEB_LOCATION = './src/main/webapp/WEB-INF/appengine-web.xml'
+POMXML_LOCATION = './pom.xml'
+
 
 def run():
+    """Kick off the script."""
+    ensure_cwd_project_root()
     ensure_mvn_installed()
     project_id = find_project_id()
     print 'Project Id: {}'.format(project_id)
     run_with_env_vars(project_id)
 
+
+def ensure_cwd_project_root():
+    """Ensure that the current working directory is the project root.
+
+    The scripts/ directory should be in the cwd.
+    """
+    if not os.path.isfile('./scripts/run_devserver.py'):
+        print ('Run this script from the root Policy Scanner directory, i.e.'
+               '\n\n $ python ./scripts/run_devserver.py\n')
+        sys.exit(1)
+
 def ensure_mvn_installed():
+    """Check to make sure that Maven (mvn) is installed."""
     mvn_cmd = find_executable('mvn')
     if not mvn_cmd:
         print ('I could not find the `mvn` tool. Did you install it?\n'
@@ -45,25 +65,26 @@ def ensure_mvn_installed():
                'http://maven.apache.org/download.cgi')
         sys.exit(1)
 
+
 def find_project_id():
-    """
-    Parse pom.xml to get the project_id and replace 
-    """
-    tree = ETree.parse('./pom.xml')
+    """Parse pom.xml to get the project_id."""
+    tree = ETree.parse(POMXML_LOCATION)
     root = tree.getroot()
     project_id = None
 
-    ns = {'maven': 'http://maven.apache.org/POM/4.0.0'}
-    for properties in root.findall('maven:properties', ns):
-        for prop in properties.findall('maven:app.id', ns):
+    pom_ns = {'maven': 'http://maven.apache.org/POM/4.0.0'}
+    for properties in root.findall('maven:properties', pom_ns):
+        for prop in properties.findall('maven:app.id', pom_ns):
             project_id = prop.text
 
     if project_id == 'YOUR_PROJECT_ID':
         project_id = None
     return project_id
 
+
 def run_with_env_vars(project_id):
-    """
+    """Run the devserver after initializing with environment variables.
+
     Parse the appengine-web.xml and export the environment variables.
     Then run the devserver.
     """
@@ -71,15 +92,15 @@ def run_with_env_vars(project_id):
         print 'Invalid project id! Did you set it in the <app.id> in pom.xml?'
         sys.exit(1)
 
-    tree = ETree.parse('./src/main/webapp/WEB-INF/appengine-web.xml')
+    tree = ETree.parse(APPENGINEWEB_LOCATION)
     root = tree.getroot()
-    ns = {'appengine': 'http://appengine.google.com/ns/1.0'}
-    env_vars = root.findall('appengine:env-variables', ns)
-    for vars in env_vars:
-        for env_var in vars.findall('appengine:env-var', ns):
-            nv = env_var.attrib
-            var_nm = nv['name']
-            var_val = nv['value']
+    appeng_ns = {'appengine': 'http://appengine.google.com/ns/1.0'}
+    env_vars = root.findall('appengine:env-variables', appeng_ns)
+    for var_children in env_vars:
+        for env_var in var_children.findall('appengine:env-var', appeng_ns):
+            name_val = env_var.attrib
+            var_nm = name_val['name']
+            var_val = name_val['value']
             if APPID_REGEX.findall(var_val):
                 var_val = APPID_REGEX.sub(project_id, var_val)
             print 'Export {} => {}'.format(var_nm, var_val)
@@ -87,9 +108,13 @@ def run_with_env_vars(project_id):
 
     subprocess.call(['mvn', 'appengine:devserver'])
 
-def handle_sigint(signal, frame):
+
+def handle_sigint(key_signal, frame):
+    """Handle ctrl-c and exit cleanly."""
+    _, _ = key_signal, frame
     print 'Exiting'
     sys.exit(0)
+
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, handle_sigint)
