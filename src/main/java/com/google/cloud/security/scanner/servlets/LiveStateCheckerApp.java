@@ -16,7 +16,6 @@
 
 package com.google.cloud.security.scanner.servlets;
 
-import com.google.appengine.api.utils.SystemProperty;
 import com.google.cloud.dataflow.sdk.options.DataflowPipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptions;
 import com.google.cloud.dataflow.sdk.options.PipelineOptionsFactory;
@@ -89,14 +88,16 @@ public class LiveStateCheckerApp extends HttpServlet {
     String outputBucket = Constants.OUTPUT_PREFIX.replaceAll("gs://", "");
     outputBucket = outputBucket.substring(0, outputBucket.lastIndexOf('/'));
     String outputBucketLink = "https://console.cloud.google.com/storage/browser/" + outputBucket;
-    String outputPage = "<b>Finished running Scanner!</b><br><br>"
-                        + "The output was written to GCS: <a href='%s'>" + "output file" + "</a>";
+    String outputPage = "<b>Finished running Scanner on "
+        + (CloudUtil.willExecuteOnCloud() ? "cloud" : "local")
+        + "!</b><br><br>"
+        + "The output was written to GCS: <a href='%s'>" + "output file" + "</a>";
     out.println(String.format(outputPage, outputBucketLink));
   }
 
   private PipelineOptions getCloudExecutionOptions(String stagingLocation) {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
-    options.setProject(SystemProperty.applicationId.get());
+    options.setProject(Constants.PROJECT_ID);
     options.setStagingLocation(stagingLocation);
     options.setRunner(BlockingDataflowPipelineRunner.class);
     return options;

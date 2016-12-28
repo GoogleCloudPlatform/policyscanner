@@ -21,21 +21,27 @@
 # $ python run_devserver.py
 
 import os
-import re
 import signal
 import subprocess
 import sys
-import xml.etree.ElementTree as ETree
+
+try:
+    import yaml
+except ImportError:
+    print ('PyYaml missing; try installing via:\n'
+           '  1. apt-get install libyaml-dev (ubuntu) OR \n'
+           '     brew install libyaml (mac)\n'
+           '  2. mkvirtualenv policyscanner-dev\n'
+           '  3. pip install pyyaml\n')
+    sys.exit(1)
 
 from distutils.spawn import find_executable
 
-APPID_REGEX = re.compile('\$\{app\.id\}')
 
 def run():
     ensure_mvn_installed()
-    project_id = find_project_id()
-    print 'Project Id: {}'.format(project_id)
-    run_with_env_vars(project_id)
+    run_with_env_vars()
+
 
 def ensure_mvn_installed():
     mvn_cmd = find_executable('mvn')
@@ -45,51 +51,28 @@ def ensure_mvn_installed():
                'http://maven.apache.org/download.cgi')
         sys.exit(1)
 
-def find_project_id():
-    """
-    Parse pom.xml to get the project_id and replace 
-    """
-    tree = ETree.parse('./pom.xml')
-    root = tree.getroot()
-    project_id = None
 
-    ns = {'maven': 'http://maven.apache.org/POM/4.0.0'}
-    for properties in root.findall('maven:properties', ns):
-        for prop in properties.findall('maven:app.id', ns):
-            project_id = prop.text
+def run_with_env_vars():
+    """Run the local devserver using the app.yaml environment variables.
 
-    if project_id == 'YOUR_PROJECT_ID':
-        project_id = None
-    return project_id
-
-def run_with_env_vars(project_id):
-    """
     Parse the appengine-web.xml and export the environment variables.
     Then run the devserver.
     """
-    if not project_id:
-        print 'Invalid project id! Did you set it in the <app.id> in pom.xml?'
-        sys.exit(1)
+    with open('./src/main/appengine/app.yaml', 'r') as yaml_file:
+        app_yaml = yaml.load(yaml_file)
+        env_vars = app_yaml['env_variables']
+        for env_var in env_vars:
+            var_val = env_vars[env_var]
+            print 'Export {} => {}'.format(env_var, var_val)
+            os.environ[env_var] = var_val
 
-    tree = ETree.parse('./src/main/webapp/WEB-INF/appengine-web.xml')
-    root = tree.getroot()
-    ns = {'appengine': 'http://appengine.google.com/ns/1.0'}
-    env_vars = root.findall('appengine:env-variables', ns)
-    for vars in env_vars:
-        for env_var in vars.findall('appengine:env-var', ns):
-            nv = env_var.attrib
-            var_nm = nv['name']
-            var_val = nv['value']
-            if APPID_REGEX.findall(var_val):
-                var_val = APPID_REGEX.sub(project_id, var_val)
-            print 'Export {} => {}'.format(var_nm, var_val)
-            os.environ[var_nm] = var_val
+    subprocess.call(['mvn', 'jetty:run'])
 
-    subprocess.call(['mvn', 'appengine:devserver'])
 
 def handle_sigint(signal, frame):
     print 'Exiting'
     sys.exit(0)
+
 
 if __name__ == '__main__':
     signal.signal(signal.SIGINT, handle_sigint)

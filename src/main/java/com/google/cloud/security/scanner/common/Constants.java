@@ -19,6 +19,7 @@ package com.google.cloud.security.scanner.common;
 /** Constants that are used by this application */
 public final class Constants {
   // environment variables
+  public static final String PROJECT_ID = System.getenv("PROJECT_ID");
   public static final String ORG_NAME = System.getenv("POLICY_SCANNER_ORG_NAME");
   public static final String ORG_ID = System.getenv("POLICY_SCANNER_ORG_ID");
   public static final String POLICY_BUCKET = System.getenv("POLICY_SCANNER_INPUT_REPOSITORY_URL");

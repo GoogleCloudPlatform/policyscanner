@@ -24,7 +24,8 @@ public class CloudUtil {
   private static final RateLimiter adminApiRateLimiter = RateLimiter.create(Constants.ADMIN_API_MAX_QPS);
 
   public static boolean willExecuteOnCloud() {
-    return SystemProperty.environment.value() == SystemProperty.Environment.Value.Production;
+    return SystemProperty.environment.value() == SystemProperty.Environment.Value.Production ||
+        System.getenv("GAE_PARTITION") != null;
   }
 
   public static RateLimiter getAdminApiRateLimiter() {

@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--- Configuration for url routing -->
-<web-app xmlns="http://java.sun.com/xml/ns/javaee"
-  xmlns:xsi=
-    "http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation=
-    "http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd"
-  version="2.5">
+<web-app xmlns="http://xmlns.jcp.org/xml/ns/javaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee
+         http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd"
+         version="3.1">
+
+  <welcome-file-list>
+    <welcome-file>index.jsp</welcome-file>
+  </welcome-file-list>
+
   <servlet>
     <servlet-name>LiveStateCheckerApp</servlet-name>
     <servlet-class>com.google.cloud.security.scanner.servlets.LiveStateCheckerApp</servlet-class>
@@ -14,6 +17,7 @@
     <servlet-name>LiveStateCheckerApp</servlet-name>
     <url-pattern>/check_states</url-pattern>
   </servlet-mapping>
+
   <servlet>
     <servlet-name>DesiredStateEnforcerApp</servlet-name>
     <servlet-class>com.google.cloud.security.scanner.servlets.DesiredStateEnforcerApp</servlet-class>
@@ -22,6 +26,7 @@
     <servlet-name>DesiredStateEnforcerApp</servlet-name>
     <url-pattern>/enforce_states</url-pattern>
   </servlet-mapping>
+
   <servlet>
     <servlet-name>UserManagedKeysApp</servlet-name>
     <servlet-class>com.google.cloud.security.scanner.servlets.UserManagedKeysApp</servlet-class>
@@ -30,6 +35,7 @@
     <servlet-name>UserManagedKeysApp</servlet-name>
     <url-pattern>/exported_keys</url-pattern>
   </servlet-mapping>
+
   <servlet>
     <servlet-name>GitGCSSyncApp</servlet-name>
     <servlet-class>com.google.cloud.security.scanner.servlets.GitGCSSyncApp</servlet-class>
@@ -38,7 +44,4 @@
     <servlet-name>GitGCSSyncApp</servlet-name>
     <url-pattern>/git_sync</url-pattern>
   </servlet-mapping>
-  <welcome-file-list>
-    <welcome-file>index.html</welcome-file>
-  </welcome-file-list>
 </web-app>
