@@ -1,5 +1,7 @@
 # Policy Scanner
 
+Policy Scanner is now part of [Forseti Security](https://github.com/GoogleCloudPlatform/forseti-security)! New development will continue under Forseti Security.
+
 Policy Scanner keeps the policies in your organization's Cloud Platform
 projects secure by:
 
